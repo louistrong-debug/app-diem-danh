@@ -357,7 +357,7 @@ def main():
                     if not title_input:
                         st.warning("⚠️ Vui lòng nhập tiêu đề!")
                     else:
-                        current_host = "http://diem_danh.streamlit.app"  
+                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"  
                         qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}"
 
                         st.session_state["qr_url"] = qr_url
