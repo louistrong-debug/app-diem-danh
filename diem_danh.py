@@ -2,6 +2,8 @@ import os
 import warnings
 import locale
 import io
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import pandas as pd
 import qrcode
 import streamlit as st
@@ -191,7 +193,6 @@ def delete_single_attendance_dialog(row_to_delete):
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_single"):
         if os.path.exists(ATTENDANCE_FILE):
             df_att = pd.read_excel(ATTENDANCE_FILE)
-            # Chuẩn hóa lại tên cột cũ nếu file excel cũ có lưu tên "Nội dung Nghị quyết"
             if "Nội dung Nghị quyết" in df_att.columns:
                 df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                 
@@ -288,8 +289,9 @@ def main():
                 if selected_name == "-- Chọn họ tên --":
                     st.error("⚠️ Vui lòng chọn hoặc gõ tìm họ tên của đồng chí!")
                 else:
-                    # Lưu thời gian theo định dạng dd/mm/yyyy HH:MM:SS
-                    formatted_time = pd.Timestamp.now().strftime("%d/%m/%Y %H:%M:%S")
+                    # FIX LỆCH MÚI GIỜ: Lấy đúng giờ Việt Nam (UTC+7)
+                    vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+                    formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
                     
                     new_record = pd.DataFrame([{
                         "Nội dung": nq_title,
@@ -302,11 +304,9 @@ def main():
 
                     if os.path.exists(ATTENDANCE_FILE):
                         df_att = pd.read_excel(ATTENDANCE_FILE)
-                        # Đổi tên cột cũ nếu file có sẵn tên cũ
                         if "Nội dung Nghị quyết" in df_att.columns:
                             df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                         
-                        # Cập nhật định dạng cột thời gian cho các dòng cũ nếu có dạng yyyy-mm-dd HH:MM:SS
                         df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
 
                         df_att = pd.concat([df_att, new_record], ignore_index=True)
@@ -432,7 +432,6 @@ def main():
                         has_transaction = False
                         if os.path.exists(ATTENDANCE_FILE):
                             df_att_check = pd.read_excel(ATTENDANCE_FILE)
-                            # Kiểm tra cả tên cột cũ và mới
                             col_check = "Nội dung" if "Nội dung" in df_att_check.columns else ("Nội dung Nghị quyết" if "Nội dung Nghị quyết" in df_att_check.columns else None)
                             if col_check and target_title in df_att_check[col_check].values:
                                 has_transaction = True
@@ -463,12 +462,10 @@ def main():
             if os.path.exists(ATTENDANCE_FILE):
                 df_att = pd.read_excel(ATTENDANCE_FILE)
 
-                # Tự động đổi tên cột cũ sang tên mới nếu có
                 if "Nội dung Nghị quyết" in df_att.columns:
                     df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                     df_att.to_excel(ATTENDANCE_FILE, index=False)
 
-                # Chuẩn hóa hiển thị cột thời gian sang định dạng dd/mm/yyyy HH:MM:SS nếu dữ liệu cũ đang ở dạng khác
                 if "Thời gian điểm danh" in df_att.columns:
                     df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
 
@@ -491,7 +488,6 @@ def main():
                     key="attendance_dataframe"
                 )
 
-                # 3 NÚT NẰM TRÊN 1 HÀNG BẰNG CÁCH DÙNG 3 CỘT
                 col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
                 
                 with col_btn1:
