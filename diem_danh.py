@@ -144,14 +144,12 @@ def apply_custom_css():
 
             div[data-testid="stColumn"] div[data-testid="stButton"] > button,
             div[data-testid="stDownloadButton"] > button {
-                width: 280px !important;
-                display: block;
-                margin: 0 auto;
+                width: 100% !important;
                 background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
                 color: white;
                 border-radius: 10px;
                 font-weight: 800 !important;
-                font-size: 18px !important;
+                font-size: 16px !important;
                 padding: 10px 20px !important;
                 border: none;
                 box-shadow: 0 4px 6px rgba(249, 115, 22, 0.2);
@@ -159,18 +157,6 @@ def apply_custom_css():
             div[data-testid="stColumn"] div[data-testid="stButton"] > button:hover,
             div[data-testid="stDownloadButton"] > button:hover {
                 background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
-            }
-
-            div[data-baseweb="modal"] div[data-testid="stButton"] > button {
-                width: 100% !important;
-                min-width: unset !important;
-                margin: 0 !important;
-                background: linear-gradient(135deg, #F97316 0%, #EA580C 100%) !important;
-                color: white !important;
-                border-radius: 8px !important;
-                font-weight: 700 !important;
-                padding: 10px 20px !important;
-                border: none !important;
             }
 
             .stDataFrame {
@@ -193,8 +179,43 @@ def delete_confirmation_dialog(target_title):
         st.rerun()
         
     st.write("")
-    
     if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete"):
+        st.rerun()
+
+
+@st.dialog("⚠️ Xác Nhận Xóa Lượt Điểm Danh")
+def delete_single_attendance_dialog(row_to_delete):
+    st.markdown(f"Bạn có chắc chắn muốn xóa lượt điểm danh của đồng chí **{row_to_delete['Họ tên']}** trong sự kiện **'{row_to_delete['Nội dung Nghị quyết']}'** không?")
+    st.write("")
+    
+    if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_single"):
+        if os.path.exists(ATTENDANCE_FILE):
+            df_att = pd.read_excel(ATTENDANCE_FILE)
+            df_att = df_att[~((df_att["Nội dung Nghị quyết"] == row_to_delete["Nội dung Nghị quyết"]) & 
+                            (df_att["Họ tên"] == row_to_delete["Họ tên"]) & 
+                            (df_att["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"]))]
+            df_att.to_excel(ATTENDANCE_FILE, index=False)
+            st.success(f"Đã xóa thành công lượt điểm danh của: {row_to_delete['Họ tên']}")
+            st.rerun()
+        
+    st.write("")
+    if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_single"):
+        st.rerun()
+
+
+@st.dialog("⚠️ Cảnh Báo: Xóa Tất Cả Điểm Danh")
+def delete_all_attendance_dialog():
+    st.markdown("Bạn có thực sự muốn **XÓA TẤT CẢ** dữ liệu điểm danh của toàn bộ các sự kiện không? Hành động này không thể hoàn tác!")
+    st.write("")
+    
+    if st.button("🚨 Đồng ý xóa sạch", use_container_width=True, key="btn_confirm_delete_all"):
+        if os.path.exists(ATTENDANCE_FILE):
+            os.remove(ATTENDANCE_FILE)
+        st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
+        st.rerun()
+        
+    st.write("")
+    if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_all"):
         st.rerun()
 
 
@@ -259,7 +280,7 @@ def main():
             st.info(f"**{default_cv}**" if default_cv else "Chưa chọn tên...")
 
             st.write("")
-            if st.button("✅ XÁC NHẬN ĐIỂM DANH"):
+            if st.button("✅ XÁC NHẬN ĐIỂM DANH", use_container_width=True):
                 if selected_name == "-- Chọn họ tên --":
                     st.error("⚠️ Vui lòng chọn hoặc gõ tìm họ tên của đồng chí!")
                 else:
@@ -338,7 +359,7 @@ def main():
                     )
 
             with col_right:
-                create_qr_clicked = st.button("🚀 Tạo mã QRCode")
+                create_qr_clicked = st.button("🚀 Tạo mã QRCode", use_container_width=True)
 
                 if create_qr_clicked:
                     title_input = nq_title_input.strip()
@@ -378,13 +399,14 @@ def main():
                             data=file,
                             file_name="qr_diem_danh.png",
                             mime="image/png",
+                            use_container_width=True,
                         )
                 else:
                     st.info("ℹ️ Chưa có mã QR nào được tạo.")
 
                 st.write("")
 
-                delete_title_clicked = st.button("🗑️ Xóa Tiêu đề")
+                delete_title_clicked = st.button("🗑️ Xóa Tiêu đề", use_container_width=True)
                 if delete_title_clicked:
                     selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
                     if not selected_rows:
@@ -407,7 +429,6 @@ def main():
 
                 st.write("")
 
-                # 3. Nút "Tải xuống danh sách tiêu đề"
                 if not df_titles.empty:
                     output_titles = io.BytesIO()
                     with pd.ExcelWriter(output_titles, engine='openpyxl') as writer:
@@ -419,6 +440,7 @@ def main():
                         data=titles_excel_data,
                         file_name="danh_sach_tieu_de.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
                     )
 
         with tab2:
@@ -434,7 +456,7 @@ def main():
                 df_filtered = df_att[df_att["Nội dung Nghị quyết"] == selected_filter] if selected_filter != "Tất cả" else df_att
 
                 st.write("")
-                st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sauional sau đó nhấn nút xóa:*")
+                st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sau đó nhấn nút xóa:*")
                 
                 event_att = st.dataframe(
                     df_filtered, 
@@ -445,37 +467,38 @@ def main():
                     key="attendance_dataframe"
                 )
 
-                if st.button("🗑️ Xóa dòng điểm danh đã chọn"):
-                    selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
-                    if not selected_att_rows:
-                        st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên để xóa!")
-                    else:
-                        selected_idx_in_filtered = selected_att_rows[0]
-                        row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
-                        
-                        df_att = df_att[~((df_att["Nội dung Nghị quyết"] == row_to_delete["Nội dung Nghị quyết"]) & 
-                                          (df_att["Họ tên"] == row_to_delete["Họ tên"]) & 
-                                          (df_att["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"]))]
-                        
-                        df_att.to_excel(ATTENDANCE_FILE, index=False)
-                        st.success(f"Đã xóa thành công lượt điểm danh của: {row_to_delete['Họ tên']}")
-                        st.rerun()
-
-                st.write("")
+                # 3 NÚT NẰM TRÊN 1 HÀNG BẰNG CÁCH DÙNG 3 CỘT
+                col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
                 
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    df_filtered.to_excel(writer, index=False)
-                excel_data = output.getvalue()
+                with col_btn1:
+                    if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
+                        selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
+                        if not selected_att_rows:
+                            st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
+                        else:
+                            selected_idx_in_filtered = selected_att_rows[0]
+                            row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
+                            delete_single_attendance_dialog(row_to_delete)
 
-                file_name_download = f"bao_cao_{selected_filter}.xlsx" if selected_filter != "Tất cả" else "bao_cao_tat_ca_diem_danh.xlsx"
+                with col_btn2:
+                    if st.button("🔥 Xóa tất cả điểm danh", use_container_width=True):
+                        delete_all_attendance_dialog()
 
-                st.download_button(
-                    label="📥 Tải Xuống Báo Cáo Điểm Danh (Excel)",
-                    data=excel_data,
-                    file_name=file_name_download,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                )
+                with col_btn3:
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df_filtered.to_excel(writer, index=False)
+                    excel_data = output.getvalue()
+
+                    file_name_download = f"bao_cao_{selected_filter}.xlsx" if selected_filter != "Tất cả" else "bao_cao_tat_ca_diem_danh.xlsx"
+
+                    st.download_button(
+                        label="📥 Tải Xuống Báo Cáo",
+                        data=excel_data,
+                        file_name=file_name_download,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
             else:
                 st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
 
