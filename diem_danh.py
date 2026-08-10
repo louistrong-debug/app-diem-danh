@@ -185,13 +185,17 @@ def delete_confirmation_dialog(target_title):
 
 @st.dialog("⚠️ Xác Nhận Xóa Lượt Điểm Danh")
 def delete_single_attendance_dialog(row_to_delete):
-    st.markdown(f"Bạn có chắc chắn muốn xóa lượt điểm danh của đồng chí **{row_to_delete['Họ tên']}** trong sự kiện **'{row_to_delete['Nội dung Nghị quyết']}'** không?")
+    st.markdown(f"Bạn có chắc chắn muốn xóa lượt điểm danh của đồng chí **{row_to_delete['Họ tên']}** trong sự kiện **'{row_to_delete['Nội dung']}'** không?")
     st.write("")
     
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_single"):
         if os.path.exists(ATTENDANCE_FILE):
             df_att = pd.read_excel(ATTENDANCE_FILE)
-            df_att = df_att[~((df_att["Nội dung Nghị quyết"] == row_to_delete["Nội dung Nghị quyết"]) & 
+            # Chuẩn hóa lại tên cột cũ nếu file excel cũ có lưu tên "Nội dung Nghị quyết"
+            if "Nội dung Nghị quyết" in df_att.columns:
+                df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                
+            df_att = df_att[~((df_att["Nội dung"] == row_to_delete["Nội dung"]) & 
                             (df_att["Họ tên"] == row_to_delete["Họ tên"]) & 
                             (df_att["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"]))]
             df_att.to_excel(ATTENDANCE_FILE, index=False)
@@ -284,17 +288,27 @@ def main():
                 if selected_name == "-- Chọn họ tên --":
                     st.error("⚠️ Vui lòng chọn hoặc gõ tìm họ tên của đồng chí!")
                 else:
+                    # Lưu thời gian theo định dạng dd/mm/yyyy HH:MM:SS
+                    formatted_time = pd.Timestamp.now().strftime("%d/%m/%Y %H:%M:%S")
+                    
                     new_record = pd.DataFrame([{
-                        "Nội dung Nghị quyết": nq_title,
+                        "Nội dung": nq_title,
                         "Ngày học": nq_date,
                         "Họ tên": selected_name,
                         "Phòng ban": default_pb,
                         "Chức vụ": default_cv,
-                        "Thời gian điểm danh": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "Thời gian điểm danh": formatted_time,
                     }])
 
                     if os.path.exists(ATTENDANCE_FILE):
                         df_att = pd.read_excel(ATTENDANCE_FILE)
+                        # Đổi tên cột cũ nếu file có sẵn tên cũ
+                        if "Nội dung Nghị quyết" in df_att.columns:
+                            df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                        
+                        # Cập nhật định dạng cột thời gian cho các dòng cũ nếu có dạng yyyy-mm-dd HH:MM:SS
+                        df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
+
                         df_att = pd.concat([df_att, new_record], ignore_index=True)
                     else:
                         df_att = new_record
@@ -418,9 +432,10 @@ def main():
                         has_transaction = False
                         if os.path.exists(ATTENDANCE_FILE):
                             df_att_check = pd.read_excel(ATTENDANCE_FILE)
-                            if "Nội dung Nghị quyết" in df_att_check.columns:
-                                if target_title in df_att_check["Nội dung Nghị quyết"].values:
-                                    has_transaction = True
+                            # Kiểm tra cả tên cột cũ và mới
+                            col_check = "Nội dung" if "Nội dung" in df_att_check.columns else ("Nội dung Nghị quyết" if "Nội dung Nghị quyết" in df_att_check.columns else None)
+                            if col_check and target_title in df_att_check[col_check].values:
+                                has_transaction = True
 
                         if has_transaction:
                             st.error(f"❌ Không thể xóa tiêu đề '{target_title}' vì tiêu đề này đã có người điểm danh.")
@@ -448,12 +463,21 @@ def main():
             if os.path.exists(ATTENDANCE_FILE):
                 df_att = pd.read_excel(ATTENDANCE_FILE)
 
-                list_nq = df_att["Nội dung Nghị quyết"].unique().tolist()
+                # Tự động đổi tên cột cũ sang tên mới nếu có
+                if "Nội dung Nghị quyết" in df_att.columns:
+                    df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                    df_att.to_excel(ATTENDANCE_FILE, index=False)
+
+                # Chuẩn hóa hiển thị cột thời gian sang định dạng dd/mm/yyyy HH:MM:SS nếu dữ liệu cũ đang ở dạng khác
+                if "Thời gian điểm danh" in df_att.columns:
+                    df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
+
+                list_nq = df_att["Nội dung"].unique().tolist()
                 selected_filter = st.selectbox(
-                    "🔍 Lọc theo nội dung nghị quyết:", ["Tất cả"] + list_nq
+                    "🔍 Lọc theo nội dung:", ["Tất cả"] + list_nq
                 )
 
-                df_filtered = df_att[df_att["Nội dung Nghị quyết"] == selected_filter] if selected_filter != "Tất cả" else df_att
+                df_filtered = df_att[df_att["Nội dung"] == selected_filter] if selected_filter != "Tất cả" else df_att
 
                 st.write("")
                 st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sau đó nhấn nút xóa:*")
