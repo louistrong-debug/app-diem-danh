@@ -36,7 +36,6 @@ def load_data():
         })
         df.to_excel(EXCEL_FILE, index=False)
     
-    # Sắp xếp toàn bộ dataframe nhân sự theo bảng chữ cái tiếng Việt chuẩn dựa trên cột "Họ tên"
     if "Họ tên" in df.columns:
         df = df.copy()
         df["_sort_key"] = df["Họ tên"].astype(str).apply(lambda x: locale.strxfrm(x.split()[-1] if x.strip() else ""))
@@ -73,7 +72,6 @@ def apply_custom_css():
                 max-width: 95% !important;
             }
 
-            /* Header Tiêu đề ứng dụng cao cấp */
             .app-header {
                 background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
                 padding: 20px 16px;
@@ -101,7 +99,6 @@ def apply_custom_css():
                 letter-spacing: 0.5px;
             }
 
-            /* TÙY CHỈNH TÊN TAB */
             .stTabs [data-baseweb="tab-list"] {
                 gap: 12px;
                 background-color: #E2E8F0;
@@ -124,12 +121,10 @@ def apply_custom_css():
                 color: #F97316 !important;
             }
 
-            /* Ép sát các khoảng trống bên trong tab */
             div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] {
                 gap: 0.4rem !important;
             }
 
-            /* ĐIỀU CHỈNH KÍCH THƯỚC CHỮ */
             label, .stTextInput label, .stSelectbox label, .stDateInput label {
                 font-size: 17px !important;
                 font-weight: 700 !important;
@@ -139,7 +134,6 @@ def apply_custom_css():
                 font-size: 14px !important;
             }
 
-            /* Tiêu đề mục bên trong tab ép sát lên trên */
             h3 {
                 color: #0F172A !important;
                 font-size: 24px !important;
@@ -148,7 +142,6 @@ def apply_custom_css():
                 margin-bottom: 5px !important;
             }
 
-            /* Cố định chiều ngang 280px cho tất cả các nút ở cột phải giao diện chính */
             div[data-testid="stColumn"] div[data-testid="stButton"] > button,
             div[data-testid="stDownloadButton"] > button {
                 width: 280px !important;
@@ -168,7 +161,6 @@ def apply_custom_css():
                 background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
             }
 
-            /* FIX CHO CÁC NÚT TRONG DIALOG (POPUP) HIỂN THỊ DẠNG XẾP DỌC TRÊN - DƯỚI */
             div[data-baseweb="modal"] div[data-testid="stButton"] > button {
                 width: 100% !important;
                 min-width: unset !important;
@@ -181,7 +173,6 @@ def apply_custom_css():
                 border: none !important;
             }
 
-            /* Bảng dữ liệu (Dataframe) */
             .stDataFrame {
                 font-size: 18px !important;
             }
@@ -189,7 +180,6 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 
-# Định nghĩa Popup Modal Xác Nhận Xóa (Xếp dọc nút trên - dưới)
 @st.dialog("⚠️ Xác Nhận Xóa Tiêu Đề")
 def delete_confirmation_dialog(target_title):
     st.markdown(f"Bạn có chắc chắn muốn xóa tiêu đề **'{target_title}'** này không?")
@@ -242,11 +232,9 @@ def main():
         with col_c2:
             all_names = df_nhansu["Họ tên"].dropna().unique().tolist()
 
-            # GIẢI PHÁP CHO IPHONE: Thêm ô gõ tìm kiếm nhanh trước, sau đó mới đến selectbox
             search_keyword = st.text_input("🔍 Gõ tên để lọc nhanh (hỗ trợ iPhone):", "", placeholder="Nhập tên hoặc họ...")
             
             if search_keyword.strip():
-                # Lọc danh sách theo từ khóa người dùng gõ vào (không phân biệt hoa thường)
                 filtered_names = [name for name in all_names if search_keyword.strip().lower() in name.lower()]
             else:
                 filtered_names = all_names
@@ -357,7 +345,7 @@ def main():
                     if not title_input:
                         st.warning("⚠️ Vui lòng nhập tiêu đề!")
                     else:
-                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"  
+                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
                         qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}"
 
                         st.session_state["qr_url"] = qr_url
@@ -417,6 +405,22 @@ def main():
                         else:
                             delete_confirmation_dialog(target_title)
 
+                st.write("")
+
+                # 3. Nút "Tải xuống danh sách tiêu đề"
+                if not df_titles.empty:
+                    output_titles = io.BytesIO()
+                    with pd.ExcelWriter(output_titles, engine='openpyxl') as writer:
+                        df_titles.to_excel(writer, index=False)
+                    titles_excel_data = output_titles.getvalue()
+
+                    st.download_button(
+                        label="📥 Tải DS Tiêu Đề (Excel)",
+                        data=titles_excel_data,
+                        file_name="danh_sach_tieu_de.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+
         with tab2:
             st.markdown("### 📈 Thống Kê & Báo Cáo Điểm Danh")
             if os.path.exists(ATTENDANCE_FILE):
@@ -430,7 +434,32 @@ def main():
                 df_filtered = df_att[df_att["Nội dung Nghị quyết"] == selected_filter] if selected_filter != "Tất cả" else df_att
 
                 st.write("")
-                st.dataframe(df_filtered, width="stretch", height=450)
+                st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sauional sau đó nhấn nút xóa:*")
+                
+                event_att = st.dataframe(
+                    df_filtered, 
+                    width="stretch", 
+                    height=380, 
+                    selection_mode="single-row", 
+                    on_select="rerun",
+                    key="attendance_dataframe"
+                )
+
+                if st.button("🗑️ Xóa dòng điểm danh đã chọn"):
+                    selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
+                    if not selected_att_rows:
+                        st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên để xóa!")
+                    else:
+                        selected_idx_in_filtered = selected_att_rows[0]
+                        row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
+                        
+                        df_att = df_att[~((df_att["Nội dung Nghị quyết"] == row_to_delete["Nội dung Nghị quyết"]) & 
+                                          (df_att["Họ tên"] == row_to_delete["Họ tên"]) & 
+                                          (df_att["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"]))]
+                        
+                        df_att.to_excel(ATTENDANCE_FILE, index=False)
+                        st.success(f"Đã xóa thành công lượt điểm danh của: {row_to_delete['Họ tên']}")
+                        st.rerun()
 
                 st.write("")
                 
