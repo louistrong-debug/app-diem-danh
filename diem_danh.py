@@ -1,6 +1,7 @@
-import io
-import locale
 import os
+import warnings
+import locale
+import io
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -306,7 +307,7 @@ def main():
                         if "Nội dung Nghị quyết" in df_att.columns:
                             df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                         
-                        df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce', dayfirst=True).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
+                        df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
 
                         df_att = pd.concat([df_att, new_record], ignore_index=True)
                     else:
@@ -347,14 +348,11 @@ def main():
 
                 st.write("")
 
-                # Lấy ngày hiện tại theo giờ Việt Nam để làm mặc định cho ô chọn ngày
-                current_vn_date = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
-
                 col_lbl2, col_date2 = st.columns([1.5, 8.5], gap="small")
                 with col_lbl2:
                     st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày học:</p>", unsafe_allow_html=True)
                 with col_date2:
-                    nq_date_input = st.date_input("Chọn ngày học", value=current_vn_date, label_visibility="collapsed", format="DD/MM/YYYY")
+                    nq_date_input = st.date_input("Chọn ngày học", label_visibility="collapsed", format="DD/MM/YYYY")
 
                 formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
@@ -469,10 +467,7 @@ def main():
                     df_att.to_excel(ATTENDANCE_FILE, index=False)
 
                 if "Thời gian điểm danh" in df_att.columns:
-                    # Chuẩn hóa lại định dạng hiển thị giờ đúng chuẩn dd/mm/yyyy hh:mm:ss
-                    df_att["Thời gian điểm danh"] = pd.to_datetime(
-                        df_att["Thời gian điểm danh"], errors='coerce', dayfirst=True
-                    ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
+                    df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
 
                 list_nq = df_att["Nội dung"].unique().tolist()
                 selected_filter = st.selectbox(
