@@ -2,12 +2,9 @@ import os
 import warnings
 import locale
 import io
-import json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
@@ -29,44 +26,6 @@ EXCEL_FILE = "danh_sach_nhan_su.xlsx"
 ATTENDANCE_FILE = "ket_qua_diem_danh.xlsx"
 TITLES_FILE = "danh_sach_tieu_de.xlsx"
 USER_FILE = "danh_sach_user.xlsx"
-
-SHEET_NAME = "QuanLyDiemDanh" 
-CREDENTIALS_FILE = "credentials.json"
-FILES_MAP = {
-    "danh_sach_nhan_su": EXCEL_FILE,
-    "danh_sach_tieu_de": TITLES_FILE,
-    "ket_qua_diem_danh": ATTENDANCE_FILE,
-    "danh_sach_user": USER_FILE
-}
-
-def sync_to_google():
-    try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        
-        # Đọc trực tiếp cấu trúc secrets an toàn trên Streamlit Cloud hoặc file json local
-        if "google_credentials" in st.secrets:
-            creds_info = dict(st.secrets["google_credentials"])
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
-        elif os.path.exists(CREDENTIALS_FILE):
-            creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
-        else:
-            return "❌ Không tìm thấy thông tin xác thực Google Sheets!"
-
-        client = gspread.authorize(creds)
-        spreadsheet = client.open(SHEET_NAME)
-        
-        for sheet_key, filename in FILES_MAP.items():
-            if os.path.exists(filename):
-                df = pd.read_excel(filename)
-                try:
-                    ws = spreadsheet.worksheet(sheet_key)
-                except:
-                    ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
-                ws.clear()
-                ws.update([df.columns.values.tolist()] + df.values.tolist())
-        return "✅ Đồng bộ dữ liệu lên Google Sheets thành công!"
-    except Exception as e: 
-        return f"❌ Lỗi đồng bộ: {str(e)}"
 
 
 def load_data():
@@ -304,13 +263,6 @@ def main():
     )
     apply_custom_css()
 
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
-    if "username" not in st.session_state:
-        st.session_state["username"] = ""
-    if "role" not in st.session_state:
-        st.session_state["role"] = ""
-
     st.markdown("""
         <div class="app-header">
             <p class="main-title">🏢 CHI BỘ TTTM SATRA PHẠM HÙNG</p>
@@ -416,6 +368,14 @@ def main():
                         st.balloons()
 
     else:
+        # KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP
+        if "logged_in" not in st.session_state:
+            st.session_state["logged_in"] = False
+        if "username" not in st.session_state:
+            st.session_state["username"] = ""
+        if "role" not in st.session_state:
+            st.session_state["role"] = ""
+
         if not st.session_state["logged_in"]:
             col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
             with col_l2:
@@ -438,6 +398,7 @@ def main():
                             st.error("❌ Tên đăng nhập hoặc mật khẩu không chính xác!")
             return
 
+        # NẾU ĐÃ ĐĂNG NHẬP THÀNH CÔNG -> HIỂN THỊ THANH ĐĂNG XUẤT VÀ TABS
         col_top1, col_top2 = st.columns([8, 2])
         with col_top1:
             st.info(f"👤 Xin chào: **{st.session_state['username']}** | Phân quyền: **{st.session_state['role']}**")
@@ -448,6 +409,7 @@ def main():
                 st.session_state["role"] = ""
                 st.rerun()
 
+        # PHÂN TÁCH GIAO DIỆN THEO QUYỀN HẠN
         if st.session_state["role"] == "Quản trị viên (Admin)":
             tab1, tab2, tab3, tab4 = st.tabs([
                 "🎯 1. Tạo QR", 
@@ -527,7 +489,7 @@ def main():
                         expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
                         expire_timestamp = expire_time.timestamp()
 
-                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
+                        current_host = "http://192.168.1.159:8501"
                         qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}&exp={expire_timestamp}"
 
                         st.session_state["qr_url"] = qr_url
@@ -732,18 +694,6 @@ def main():
             with tab4:
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
                 st.write("")
-
-                # NÚT ĐỒNG BỘ GOOGLE SHEETS DÙNG SECRETS HOẶC FILE LOCAL
-                st.markdown("#### ☁️ Đồng bộ dữ liệu lên Google Sheets dự phòng")
-                if st.button("🔄 Đồng bộ dữ liệu ngay", use_container_width=True):
-                    with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
-                        res_msg = sync_to_google()
-                        if "✅" in res_msg:
-                            st.success(res_msg)
-                        else:
-                            st.error(res_msg)
-                
-                st.write("---")
 
                 df_users = load_users()
 
