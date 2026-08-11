@@ -43,14 +43,14 @@ def sync_to_google():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         
-        # Kiểm tra cấu hình Secrets trên Streamlit Cloud hoặc file json local
+        # Đọc trực tiếp cấu trúc secrets an toàn trên Streamlit Cloud hoặc file json local
         if "google_credentials" in st.secrets:
-            creds_info = json.loads(st.secrets["google_credentials"])
+            creds_info = dict(st.secrets["google_credentials"])
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         elif os.path.exists(CREDENTIALS_FILE):
             creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
         else:
-            return "❌ Không tìm thấy thông tin xác thực Google Sheets (Thiếu Secrets hoặc file credentials.json)!"
+            return "❌ Không tìm thấy thông tin xác thực Google Sheets!"
 
         client = gspread.authorize(creds)
         spreadsheet = client.open(SHEET_NAME)
@@ -527,7 +527,7 @@ def main():
                         expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
                         expire_timestamp = expire_time.timestamp()
 
-                        current_host = "http://192.168.1.159:8501"
+                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
                         qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}&exp={expire_timestamp}"
 
                         st.session_state["qr_url"] = qr_url
