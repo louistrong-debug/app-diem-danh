@@ -98,8 +98,16 @@ def apply_custom_css():
                 font-size: 17px !important;
                 text-transform: uppercase;
                 margin-top: 8px;
-                margin-bottom: 0;
+                margin-bottom: 4px;
                 letter-spacing: 0.5px;
+            }
+            .ai-badge {
+                color: #94A3B8;
+                font-weight: 500;
+                font-size: 13px !important;
+                font-style: italic;
+                margin: 0;
+                letter-spacing: 0.3px;
             }
 
             .stTabs [data-baseweb="tab-list"] {
@@ -236,6 +244,7 @@ def main():
         <div class="app-header">
             <p class="main-title">🏢 CHI BỘ TTTM SATRA PHẠM HÙNG</p>
             <p class="sub-title">📋 HỆ THỐNG QUẢN LÝ ĐIỂM DANH</p>
+            <p class="ai-badge">✨ Ứng dụng hỗ trợ bởi Trí tuệ Nhân tạo (AI)</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -436,7 +445,6 @@ def main():
                 if "temp_qr.png" in os.listdir() and "expire_timestamp" in st.session_state:
                     st.image("temp_qr.png", caption=st.session_state.get("nq_title", ""), width=280)
                     
-                    # Đã sửa lỗi f-string Python xung đột với cú pháp Javascript bằng cách định dạng chuỗi an toàn
                     exp_ms = int(st.session_state["expire_timestamp"] * 1000)
                     countdown_html = """
                     <div style="text-align: center; font-size: 15px; font-weight: bold; color: #DC2626; background-color: #FEF2F2; padding: 8px; border-radius: 8px; border: 1px solid #FCA5A5; margin-bottom: 10px;">
@@ -464,7 +472,6 @@ def main():
                     </script>
                     """ % exp_ms
                     
-                    # Thay thế %% trong Javascript thành % chuẩn
                     countdown_html = countdown_html.replace("%%", "%")
                     
                     components.html(countdown_html, height=50)
