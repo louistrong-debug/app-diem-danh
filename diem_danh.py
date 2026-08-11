@@ -489,7 +489,7 @@ def main():
                         expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
                         expire_timestamp = expire_time.timestamp()
 
-                        current_host = "http://192.168.1.159:8501"
+                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
                         qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}&exp={expire_timestamp}"
 
                         st.session_state["qr_url"] = qr_url
