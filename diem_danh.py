@@ -2,11 +2,12 @@ import os
 import warnings
 import locale
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
 import qrcode
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Tắt các thông báo cảnh báo không cần thiết trên terminal
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -186,8 +187,8 @@ def delete_confirmation_dialog(target_title):
 
 
 @st.dialog("⚠️ Xác Nhận Xóa Lượt Điểm Danh")
-def delete_single_attendance_dialog(row_to_delete):
-    st.markdown(f"Bạn có chắc chắn muốn xóa lượt điểm danh của đồng chí **{row_to_delete['Họ tên']}** trong sự kiện **'{row_to_delete['Nội dung']}'** không?")
+def delete_single_attendance_dialog(row_index_to_delete, row_data):
+    st.markdown(f"Bạn có chắc chắn muốn xóa lượt điểm danh của đồng chí **{row_data['Họ tên']}** trong sự kiện **'{row_data['Nội dung']}'** không?")
     st.write("")
     
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_single"):
@@ -196,12 +197,13 @@ def delete_single_attendance_dialog(row_to_delete):
             if "Nội dung Nghị quyết" in df_att.columns:
                 df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                 
-            df_att = df_att[~((df_att["Nội dung"] == row_to_delete["Nội dung"]) & 
-                            (df_att["Họ tên"] == row_to_delete["Họ tên"]) & 
-                            (df_att["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"]))]
-            df_att.to_excel(ATTENDANCE_FILE, index=False)
-            st.success(f"Đã xóa thành công lượt điểm danh của: {row_to_delete['Họ tên']}")
-            st.rerun()
+            if row_index_to_delete in df_att.index:
+                df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
+                df_att.to_excel(ATTENDANCE_FILE, index=False)
+                st.success(f"Đã xóa thành công lượt điểm danh của: {row_data['Họ tên']}")
+                st.rerun()
+            else:
+                st.error("❌ Không tìm thấy dòng dữ liệu cần xóa trong file!")
         
     st.write("")
     if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_single"):
@@ -245,6 +247,17 @@ def main():
     if is_checkin_page:
         nq_title = query_params.get("nq", "Học nghị quyết")
         nq_date = query_params.get("date", "")
+        exp_timestamp = query_params.get("exp", "")
+
+        is_expired = False
+        if exp_timestamp:
+            try:
+                exp_time = datetime.fromtimestamp(float(exp_timestamp), ZoneInfo("Asia/Ho_Chi_Minh"))
+                current_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+                if current_time > exp_time:
+                    is_expired = True
+            except Exception:
+                pass
 
         st.markdown(f"""
             <div style="background-color: #FFFFFF; padding: 35px; border-radius: 16px; text-align: center; margin: 0 auto; max-width: 700px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #E2E8F0;">
@@ -254,68 +267,73 @@ def main():
             </div>
         """, unsafe_allow_html=True)
 
-        col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
-        with col_c2:
-            all_names = df_nhansu["Họ tên"].dropna().unique().tolist()
+        if is_expired:
+            st.error("🚨 **Mã QR này đã hết hạn hiệu lực (quá 15 phút).** Vui lòng liên hệ ban tổ chức để quét mã QR mới nhất!")
+        else:
+            col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
+            with col_c2:
+                all_names = df_nhansu["Họ tên"].dropna().unique().tolist()
 
-            search_keyword = st.text_input("🔍 Gõ tên để lọc nhanh (hỗ trợ iPhone):", "", placeholder="Nhập tên hoặc họ...")
-            
-            if search_keyword.strip():
-                filtered_names = [name for name in all_names if search_keyword.strip().lower() in name.lower()]
-            else:
-                filtered_names = all_names
-
-            selected_name = st.selectbox(
-                "👉 Gõ hoặc chọn họ tên của đồng chí:", ["-- Chọn họ tên --"] + filtered_names
-            )
-
-            default_pb = ""
-            default_cv = ""
-
-            if selected_name != "-- Chọn họ tên --":
-                matched_row = df_nhansu[df_nhansu["Họ tên"] == selected_name]
-                if not matched_row.empty:
-                    default_pb = str(matched_row.iloc[0]["Phòng ban"])
-                    default_cv = str(matched_row.iloc[0]["Chức vụ"])
-
-            st.markdown("<p style='font-size: 17px; font-weight: 700; margin-top: 15px; margin-bottom: 5px; color: #1E293B;'>🏢 Phòng ban:</p>", unsafe_allow_html=True)
-            st.info(f"**{default_pb}**" if default_pb else "Chưa chọn tên...")
-
-            st.markdown("<p style='font-size: 17px; font-weight: 700; margin-top: 10px; margin-bottom: 5px; color: #1E293B;'>💼 Chức vụ:</p>", unsafe_allow_html=True)
-            st.info(f"**{default_cv}**" if default_cv else "Chưa chọn tên...")
-
-            st.write("")
-            if st.button("✅ XÁC NHẬN ĐIỂM DANH", use_container_width=True):
-                if selected_name == "-- Chọn họ tên --":
-                    st.error("⚠️ Vui lòng chọn hoặc gõ tìm họ tên của đồng chí!")
+                search_keyword = st.text_input("🔍 Gõ tên để lọc nhanh (hỗ trợ iPhone):", "", placeholder="Nhập tên hoặc họ...")
+                
+                if search_keyword.strip():
+                    filtered_names = [name for name in all_names if search_keyword.strip().lower() in name.lower()]
                 else:
-                    # FIX LỆCH MÚI GIỜ: Lấy đúng giờ Việt Nam (UTC+7)
-                    vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
-                    formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
-                    
-                    new_record = pd.DataFrame([{
-                        "Nội dung": nq_title,
-                        "Ngày học": nq_date,
-                        "Họ tên": selected_name,
-                        "Phòng ban": default_pb,
-                        "Chức vụ": default_cv,
-                        "Thời gian điểm danh": formatted_time,
-                    }])
+                    filtered_names = all_names
 
-                    if os.path.exists(ATTENDANCE_FILE):
-                        df_att = pd.read_excel(ATTENDANCE_FILE)
-                        if "Nội dung Nghị quyết" in df_att.columns:
-                            df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                        
-                        df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
+                selected_name = st.selectbox(
+                    "👉 Gõ hoặc chọn họ tên của đồng chí:", ["-- Chọn họ tên --"] + filtered_names
+                )
 
-                        df_att = pd.concat([df_att, new_record], ignore_index=True)
+                default_pb = ""
+                default_cv = ""
+
+                if selected_name != "-- Chọn họ tên --":
+                    matched_row = df_nhansu[df_nhansu["Họ tên"] == selected_name]
+                    if not matched_row.empty:
+                        default_pb = str(matched_row.iloc[0]["Phòng ban"])
+                        default_cv = str(matched_row.iloc[0]["Chức vụ"])
+
+                st.markdown("<p style='font-size: 17px; font-weight: 700; margin-top: 15px; margin-bottom: 5px; color: #1E293B;'>🏢 Phòng ban:</p>", unsafe_allow_html=True)
+                st.info(f"**{default_pb}**" if default_pb else "Chưa chọn tên...")
+
+                st.markdown("<p style='font-size: 17px; font-weight: 700; margin-top: 10px; margin-bottom: 5px; color: #1E293B;'>💼 Chức vụ:</p>", unsafe_allow_html=True)
+                st.info(f"**{default_cv}**" if default_cv else "Chưa chọn tên...")
+
+                st.write("")
+                if st.button("✅ XÁC NHẬN ĐIỂM DANH", use_container_width=True):
+                    if selected_name == "-- Chọn họ tên --":
+                        st.error("⚠️ Vui lòng chọn hoặc gõ tìm họ tên của đồng chí!")
                     else:
-                        df_att = new_record
+                        vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
+                        formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
+                        
+                        new_record = pd.DataFrame([{
+                            "Nội dung": nq_title,
+                            "Ngày học": nq_date,
+                            "Họ tên": selected_name,
+                            "Phòng ban": default_pb,
+                            "Chức vụ": default_cv,
+                            "Thời gian điểm danh": formatted_time,
+                        }])
 
-                    df_att.to_excel(ATTENDANCE_FILE, index=False)
-                    st.success("🎉 Cảm ơn Đồng chí! Điểm danh thành công.")
-                    st.balloons()
+                        if os.path.exists(ATTENDANCE_FILE):
+                            df_att = pd.read_excel(ATTENDANCE_FILE)
+                            if "Nội dung Nghị quyết" in df_att.columns:
+                                df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                            
+                            df_att = pd.concat([df_att, new_record], ignore_index=True)
+                        else:
+                            df_att = new_record
+
+                        if "Thời gian điểm danh" in df_att.columns:
+                            df_att["Thời gian điểm danh"] = pd.to_datetime(
+                                df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
+                            ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
+
+                        df_att.to_excel(ATTENDANCE_FILE, index=False)
+                        st.success("🎉 Cảm ơn Đồng chí! Điểm danh thành công.")
+                        st.balloons()
 
     else:
         tab1, tab2, tab3 = st.tabs([
@@ -335,10 +353,17 @@ def main():
 
                 selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
                 default_title_val = ""
+                default_date_val = datetime.now().date()
+
                 if selected_rows and not df_titles.empty:
                     selected_idx = selected_rows[0]
                     if selected_idx < len(df_titles):
                         default_title_val = str(df_titles.iloc[selected_idx]["Tên Tiêu đề"])
+                        raw_date = str(df_titles.iloc[selected_idx]["Ngày học"])
+                        try:
+                            default_date_val = datetime.strptime(raw_date.strip(), "%d/%m/%Y").date()
+                        except Exception:
+                            pass
 
                 col_lbl1, col_input1 = st.columns([1.5, 8.5], gap="small")
                 with col_lbl1:
@@ -352,7 +377,7 @@ def main():
                 with col_lbl2:
                     st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày học:</p>", unsafe_allow_html=True)
                 with col_date2:
-                    nq_date_input = st.date_input("Chọn ngày học", label_visibility="collapsed", format="DD/MM/YYYY")
+                    nq_date_input = st.date_input("Chọn ngày học", value=default_date_val, label_visibility="collapsed", format="DD/MM/YYYY")
 
                 formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
@@ -373,18 +398,22 @@ def main():
                     )
 
             with col_right:
-                create_qr_clicked = st.button("🚀 Tạo mã QRCode", use_container_width=True)
+                create_qr_clicked = st.button("🚀 Tạo mã QRCode (Hiệu lực 15 phút)", use_container_width=True)
 
                 if create_qr_clicked:
                     title_input = nq_title_input.strip()
                     if not title_input:
                         st.warning("⚠️ Vui lòng nhập tiêu đề!")
                     else:
+                        expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
+                        expire_timestamp = expire_time.timestamp()
+
                         current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
-                        qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}"
+                        qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}&exp={expire_timestamp}"
 
                         st.session_state["qr_url"] = qr_url
                         st.session_state["nq_title"] = title_input
+                        st.session_state["expire_timestamp"] = expire_timestamp
 
                         qr = qrcode.QRCode(version=1, box_size=10, border=5)
                         qr.add_data(qr_url)
@@ -394,7 +423,7 @@ def main():
 
                         df_titles_current = load_titles()
                         if title_input in df_titles_current["Tên Tiêu đề"].values:
-                            st.success("✨ Đã tạo mã QR thành công! (Tiêu đề này đã có sẵn trong danh sách).")
+                            st.success("✨ Đã tạo mã QR mới thành công!")
                         else:
                             new_row = pd.DataFrame([{"Tên Tiêu đề": title_input, "Ngày học": formatted_date_str}])
                             df_titles_current = pd.concat([df_titles_current, new_row], ignore_index=True)
@@ -404,9 +433,42 @@ def main():
 
                 st.write("")
 
-                if "temp_qr.png" in os.listdir():
+                if "temp_qr.png" in os.listdir() and "expire_timestamp" in st.session_state:
                     st.image("temp_qr.png", caption=st.session_state.get("nq_title", ""), width=280)
-                    st.write("")
+                    
+                    # Đã sửa lỗi f-string Python xung đột với cú pháp Javascript bằng cách định dạng chuỗi an toàn
+                    exp_ms = int(st.session_state["expire_timestamp"] * 1000)
+                    countdown_html = """
+                    <div style="text-align: center; font-size: 15px; font-weight: bold; color: #DC2626; background-color: #FEF2F2; padding: 8px; border-radius: 8px; border: 1px solid #FCA5A5; margin-bottom: 10px;">
+                        ⏳ Mã QR sẽ hết hạn sau: <span id="countdown" style="font-size: 16px;">--:--</span>
+                    </div>
+                    <script>
+                        var countDownDate = %s;
+                        var x = setInterval(function() {
+                            var now = new Date().getTime();
+                            var distance = countDownDate - now;
+                            var minutes = Math.floor((distance %% (1000 * 60 * 60)) / (1000 * 60));
+                            var seconds = Math.floor((distance %% (1000 * 60)) / 1000);
+                            
+                            if (minutes < 10) minutes = "0" + minutes;
+                            if (seconds < 10) seconds = "0" + seconds;
+
+                            if (distance < 0) {
+                                clearInterval(x);
+                                document.getElementById("countdown").innerHTML = "ĐÃ HẾT HẠN!";
+                                document.getElementById("countdown").style.color = "red";
+                            } else {
+                                document.getElementById("countdown").innerHTML = minutes + " phút " + seconds + " giây";
+                            }
+                        }, 1000);
+                    </script>
+                    """ % exp_ms
+                    
+                    # Thay thế %% trong Javascript thành % chuẩn
+                    countdown_html = countdown_html.replace("%%", "%")
+                    
+                    components.html(countdown_html, height=50)
+
                     with open("temp_qr.png", "rb") as file:
                         st.download_button(
                             label="📥 Tải xuống mã QRCode",
@@ -467,7 +529,9 @@ def main():
                     df_att.to_excel(ATTENDANCE_FILE, index=False)
 
                 if "Thời gian điểm danh" in df_att.columns:
-                    df_att["Thời gian điểm danh"] = pd.to_datetime(df_att["Thời gian điểm danh"], errors='coerce').dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"])
+                    df_att["Thời gian điểm danh"] = pd.to_datetime(
+                        df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
+                    ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
 
                 list_nq = df_att["Nội dung"].unique().tolist()
                 selected_filter = st.selectbox(
@@ -498,11 +562,29 @@ def main():
                         else:
                             selected_idx_in_filtered = selected_att_rows[0]
                             row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
-                            delete_single_attendance_dialog(row_to_delete)
+                            original_index = row_to_delete.name
+                            delete_single_attendance_dialog(original_index, row_to_delete)
 
                 with col_btn2:
-                    if st.button("🔥 Xóa tất cả điểm danh", use_container_width=True):
-                        delete_all_attendance_dialog()
+                    btn_label = "🔥 Xóa tất cả điểm danh" if selected_filter == "Tất cả" else f"🔥 Xóa điểm danh sự kiện này"
+                    if st.button(btn_label, use_container_width=True):
+                        if selected_filter == "Tất cả":
+                            delete_all_attendance_dialog()
+                        else:
+                            @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
+                            def delete_specific_event_dialog(target_event):
+                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
+                                st.write("")
+                                if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
+                                    df_remaining = df_att[df_att["Nội dung"] != target_event]
+                                    df_remaining.to_excel(ATTENDANCE_FILE, index=False)
+                                    st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
+                                    st.rerun()
+                                st.write("")
+                                if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_specific"):
+                                    st.rerun()
+                            
+                            delete_specific_event_dialog(selected_filter)
 
                 with col_btn3:
                     output = io.BytesIO()
