@@ -5,6 +5,8 @@ import io
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
@@ -21,10 +23,42 @@ except Exception:
     except Exception:
         pass
 
-# File lưu danh sách gốc, danh sách tiêu đề và dữ liệu điểm danh
+# File lưu danh sách gốc, danh sách tiêu đề, dữ liệu điểm danh và danh sách user
 EXCEL_FILE = "danh_sach_nhan_su.xlsx"
 ATTENDANCE_FILE = "ket_qua_diem_danh.xlsx"
 TITLES_FILE = "danh_sach_tieu_de.xlsx"
+USER_FILE = "danh_sach_user.xlsx"
+
+SHEET_NAME = "QuanLyDiemDanh" 
+CREDENTIALS_FILE = "credentials.json"
+FILES_MAP = {
+    "danh_sach_nhan_su": EXCEL_FILE,
+    "danh_sach_tieu_de": TITLES_FILE,
+    "ket_qua_diem_danh": ATTENDANCE_FILE,
+    "danh_sach_user": USER_FILE
+}
+
+def sync_to_google():
+    if not os.path.exists(CREDENTIALS_FILE): 
+        return "❌ Thiếu file credentials.json trong thư mục!"
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open(SHEET_NAME)
+        
+        for sheet_key, filename in FILES_MAP.items():
+            if os.path.exists(filename):
+                df = pd.read_excel(filename)
+                try:
+                    ws = spreadsheet.worksheet(sheet_key)
+                except:
+                    ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
+                ws.clear()
+                ws.update([df.columns.values.tolist()] + df.values.tolist())
+        return "✅ Đồng bộ dữ liệu lên Google Sheets thành công!"
+    except Exception as e: 
+        return f"❌ Lỗi đồng bộ: {str(e)}"
 
 
 def load_data():
@@ -60,6 +94,28 @@ def load_titles():
 
 def save_titles(df):
     df.to_excel(TITLES_FILE, index=False)
+
+
+def load_users():
+    if os.path.exists(USER_FILE):
+        try:
+            df_u = pd.read_excel(USER_FILE)
+            if "Mật khẩu" in df_u.columns:
+                df_u["Mật khẩu"] = df_u["Mật khẩu"].astype(str)
+            return df_u
+        except Exception:
+            pass
+    default_user = pd.DataFrame({
+        "Tên đăng nhập": ["admin"],
+        "Mật khẩu": ["123456"],
+        "Quyền hạn": ["Quản trị viên (Admin)"]
+    })
+    default_user.to_excel(USER_FILE, index=False)
+    return default_user
+
+
+def save_users(df):
+    df.to_excel(USER_FILE, index=False)
 
 
 def apply_custom_css():
@@ -121,9 +177,9 @@ def apply_custom_css():
                 background-color: #FFFFFF;
                 border-radius: 8px;
                 color: #334155;
-                font-size: 22px !important;
+                font-size: 19px !important;
                 font-weight: 800 !important;
-                padding: 10px 24px !important;
+                padding: 10px 18px !important;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.05);
                 border: none;
             }
@@ -240,6 +296,13 @@ def main():
     )
     apply_custom_css()
 
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
+    if "username" not in st.session_state:
+        st.session_state["username"] = ""
+    if "role" not in st.session_state:
+        st.session_state["role"] = ""
+
     st.markdown("""
         <div class="app-header">
             <p class="main-title">🏢 CHI BỘ TTTM SATRA PHẠM HÙNG</p>
@@ -345,11 +408,50 @@ def main():
                         st.balloons()
 
     else:
-        tab1, tab2, tab3 = st.tabs([
-            "🎯 1. Tạo QR Điểm danh", 
-            "📊 2. Xem Danh sách Điểm danh", 
-            "👥 3. Quản lý Nhân sự"
-        ])
+        if not st.session_state["logged_in"]:
+            col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
+            with col_l2:
+                st.markdown("<h3 style='text-align: center; margin-top: 20px;'>🔐 ĐĂNG NHẬP HỆ THỐNG</h3>", unsafe_allow_html=True)
+                with st.form("login_form"):
+                    input_user = st.text_input("Tên đăng nhập:")
+                    input_pass = st.text_input("Mật khẩu:", type="password")
+                    submit_login = st.form_submit_button("🚀 Đăng Nhập", use_container_width=True)
+
+                    if submit_login:
+                        df_users = load_users()
+                        matched_u = df_users[(df_users["Tên đăng nhập"] == input_user.strip()) & (df_users["Mật khẩu"] == input_pass.strip())]
+                        if not matched_u.empty:
+                            st.session_state["logged_in"] = True
+                            st.session_state["username"] = input_user.strip()
+                            st.session_state["role"] = str(matched_u.iloc[0]["Quyền hạn"])
+                            st.success("🎉 Đăng nhập thành công!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Tên đăng nhập hoặc mật khẩu không chính xác!")
+            return
+
+        col_top1, col_top2 = st.columns([8, 2])
+        with col_top1:
+            st.info(f"👤 Xin chào: **{st.session_state['username']}** | Phân quyền: **{st.session_state['role']}**")
+        with col_top2:
+            if st.button("🚪 Đăng Xuất", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["username"] = ""
+                st.session_state["role"] = ""
+                st.rerun()
+
+        if st.session_state["role"] == "Quản trị viên (Admin)":
+            tab1, tab2, tab3, tab4 = st.tabs([
+                "🎯 1. Tạo QR", 
+                "📊 2. Điểm Danh", 
+                "👥 3. Nhân Sự",
+                "🔐 4. Quản Trị User"
+            ])
+        else:
+            tab1, tab2 = st.tabs([
+                "🎯 1. Tạo QR", 
+                "📊 2. Điểm Danh"
+            ])
 
         with tab1:
             col_left, col_right = st.columns([2, 1], gap="large")
@@ -611,12 +713,92 @@ def main():
             else:
                 st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
 
-        with tab3:
-            st.markdown("### 📂 Quản Lý Danh Sách Nhân Sự TTTM")
-            st.dataframe(df_nhansu, width="stretch", height=450)
-            st.warning(
-                "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
-            )
+        if st.session_state["role"] == "Quản trị viên (Admin)":
+            with tab3:
+                st.markdown("### 📂 Quản Lý Danh Sách Nhân Sự TTTM")
+                st.dataframe(df_nhansu, width="stretch", height=450)
+                st.warning(
+                    "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
+                )
+
+            with tab4:
+                st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
+                st.write("")
+
+                # NÚT ĐỒNG BỘ GOOGLE SHEETS NẰM Ở ĐÂY CHO ADMIN
+                st.markdown("#### ☁️ Đồng bộ dữ liệu lên Google Sheets dự phòng")
+                if st.button("🔄 Đồng bộ dữ liệu ngay", use_container_width=True):
+                    with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
+                        res_msg = sync_to_google()
+                        if "✅" in res_msg:
+                            st.success(res_msg)
+                        else:
+                            st.error(res_msg)
+                
+                st.write("---")
+
+                df_users = load_users()
+
+                col_u1, col_u2 = st.columns(2, gap="large")
+
+                with col_u1:
+                    st.markdown("#### ➕ Tạo Tài Khoản Mới")
+                    with st.form("form_create_user"):
+                        new_username = st.text_input("Tên đăng nhập:")
+                        new_password = st.text_input("Mật khẩu:", type="password")
+                        new_role = st.selectbox("Phân quyền:", ["Quản trị viên (Admin)", "Nhân sự (User)"])
+                        
+                        submit_create = st.form_submit_button("💾 Lưu Tài Khoản Mới", use_container_width=True)
+                        if submit_create:
+                            if not new_username.strip() or not new_password.strip():
+                                st.error("⚠️ Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!")
+                            elif new_username.strip() in df_users["Tên đăng nhập"].values:
+                                st.error(f"❌ Tên đăng nhập '{new_username}' đã tồn tại!")
+                            else:
+                                new_u_row = pd.DataFrame([{
+                                    "Tên đăng nhập": new_username.strip(),
+                                    "Mật khẩu": str(new_password).strip(),
+                                    "Quyền hạn": new_role
+                                }])
+                                df_users = pd.concat([df_users, new_u_row], ignore_index=True)
+                                save_users(df_users)
+                                st.success(f"✨ Đã tạo thành công tài khoản: **{new_username.strip()}**")
+                                st.rerun()
+
+                    st.markdown("#### 🔑 Thay Đổi Mật Khẩu")
+                    with st.form("form_change_password"):
+                        target_user = st.selectbox("Chọn tài khoản cần đổi mật khẩu:", df_users["Tên đăng nhập"].tolist())
+                        new_pwd = st.text_input("Mật khẩu mới:", type="password")
+                        
+                        submit_change = st.form_submit_button("🔄 Cập Nhật Mật Khẩu", use_container_width=True)
+                        if submit_change:
+                            if not new_pwd.strip():
+                                st.error("⚠️ Vui lòng nhập mật khẩu mới!")
+                            else:
+                                df_users.loc[df_users["Tên đăng nhập"] == target_user, "Mật khẩu"] = str(new_pwd).strip()
+                                save_users(df_users)
+                                st.success(f"✨ Đã đổi mật khẩu thành công cho tài khoản: **{target_user}**")
+                                st.rerun()
+
+                with col_u2:
+                    st.markdown("#### 👥 Danh Sách Tài Khoản Hiện Tại")
+                    st.dataframe(df_users, width="stretch", height=320)
+
+                    st.write("")
+                    st.markdown("#### 🗑️ Xóa Tài Khoản")
+                    with st.form("form_delete_user"):
+                        del_user = st.selectbox("Chọn tài khoản cần xóa:", ["-- Chọn tài khoản --"] + df_users["Tên đăng nhập"].tolist(), key="del_selectbox")
+                        submit_del = st.form_submit_button("🚨 Xóa Tài Khoản Này", use_container_width=True)
+                        if submit_del:
+                            if del_user == "-- Chọn tài khoản --":
+                                st.warning("⚠️ Vui lòng chọn tài khoản cần xóa!")
+                            elif del_user == "admin":
+                                st.error("❌ Không thể xóa tài khoản Quản trị viên gốc (admin)!")
+                            else:
+                                df_users = df_users[df_users["Tên đăng nhập"] != del_user]
+                                save_users(df_users)
+                                st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công.")
+                                st.rerun()
 
 if __name__ == "__main__":
     main()
