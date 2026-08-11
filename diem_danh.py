@@ -120,6 +120,22 @@ def load_users():
 def save_users(df):
     df.to_excel(USER_FILE, index=False)
 
+def sync_single_record_to_google(record_dict):
+    try:
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open(SHEET_NAME)
+        ws = spreadsheet.worksheet("ket_qua_diem_danh")
+        ws.append_row([
+            record_dict.get("Nội dung"), record_dict.get("Ngày học"), record_dict.get("Họ tên"),
+            record_dict.get("Phòng ban"), record_dict.get("Chức vụ"), record_dict.get("Thời gian điểm danh")
+        ])
+        return True
+    except Exception as e:
+        st.error(f"⚠️ Lỗi đồng bộ tự động: {str(e)}")
+        return False
 
 def apply_custom_css():
     st.markdown("""
@@ -383,31 +399,26 @@ def main():
                         vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
                         formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
                         
-                        new_record = pd.DataFrame([{
-                            "Nội dung": nq_title,
-                            "Ngày học": nq_date,
-                            "Họ tên": selected_name,
-                            "Phòng ban": default_pb,
-                            "Chức vụ": default_cv,
-                            "Thời gian điểm danh": formatted_time,
-                        }])
-
+                        # 1. Đóng gói dữ liệu
+                        record_data = {
+                            "Nội dung": nq_title, "Ngày học": nq_date, "Họ tên": selected_name,
+                            "Phòng ban": default_pb, "Chức vụ": default_cv, "Thời gian điểm danh": formatted_time
+                        }
+                        
+                        # 2. Lưu vào file Local
                         if os.path.exists(ATTENDANCE_FILE):
                             df_att = pd.read_excel(ATTENDANCE_FILE)
-                            if "Nội dung Nghị quyết" in df_att.columns:
-                                df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                            
-                            df_att = pd.concat([df_att, new_record], ignore_index=True)
+                            if "Nội dung Nghị quyết" in df_att.columns: df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                            df_att = pd.concat([df_att, pd.DataFrame([record_data])], ignore_index=True)
                         else:
-                            df_att = new_record
-
-                        if "Thời gian điểm danh" in df_att.columns:
-                            df_att["Thời gian điểm danh"] = pd.to_datetime(
-                                df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
-                            ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
-
+                            df_att = pd.DataFrame([record_data])
                         df_att.to_excel(ATTENDANCE_FILE, index=False)
-                        st.success("🎉 Cảm ơn Đồng chí! Điểm danh thành công.")
+                        
+                        # 3. GỌI HÀM SYNC TỰ ĐỘNG
+                        with st.spinner("Đang lưu lên hệ thống Cloud..."):
+                            sync_success = sync_single_record_to_google(record_data)
+                        
+                        if sync_success: st.success("🎉 Cảm ơn Đồng chí! Điểm danh thành công (đã lưu Cloud).")
                         st.balloons()
 
     else:
