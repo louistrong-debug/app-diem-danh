@@ -2,6 +2,7 @@ import os
 import warnings
 import locale
 import io
+import json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -39,11 +40,18 @@ FILES_MAP = {
 }
 
 def sync_to_google():
-    if not os.path.exists(CREDENTIALS_FILE): 
-        return "❌ Thiếu file credentials.json trong thư mục!"
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
+        
+        # Kiểm tra cấu hình Secrets trên Streamlit Cloud hoặc file json local
+        if "google_credentials" in st.secrets:
+            creds_info = json.loads(st.secrets["google_credentials"])
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
+        elif os.path.exists(CREDENTIALS_FILE):
+            creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
+        else:
+            return "❌ Không tìm thấy thông tin xác thực Google Sheets (Thiếu Secrets hoặc file credentials.json)!"
+
         client = gspread.authorize(creds)
         spreadsheet = client.open(SHEET_NAME)
         
@@ -519,7 +527,7 @@ def main():
                         expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
                         expire_timestamp = expire_time.timestamp()
 
-                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
+                        current_host = "http://192.168.1.159:8501"
                         qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}&exp={expire_timestamp}"
 
                         st.session_state["qr_url"] = qr_url
@@ -725,7 +733,7 @@ def main():
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
                 st.write("")
 
-                # NÚT ĐỒNG BỘ GOOGLE SHEETS NẰM Ở ĐÂY CHO ADMIN
+                # NÚT ĐỒNG BỘ GOOGLE SHEETS DÙNG SECRETS HOẶC FILE LOCAL
                 st.markdown("#### ☁️ Đồng bộ dữ liệu lên Google Sheets dự phòng")
                 if st.button("🔄 Đồng bộ dữ liệu ngay", use_container_width=True):
                     with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
