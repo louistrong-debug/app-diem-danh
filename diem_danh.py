@@ -39,10 +39,9 @@ FILES_MAP = {
 }
 
 def sync_to_google():
+    """Hàm đồng bộ toàn bộ dữ liệu lên Google Sheets"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        
-        # Lấy thông tin từ Streamlit Secrets
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         
@@ -58,9 +57,9 @@ def sync_to_google():
                     ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
                 ws.clear()
                 ws.update([df.columns.values.tolist()] + df.values.tolist())
-        return "✅ Đồng bộ dữ liệu lên Google Sheets thành công!"
+        return True
     except Exception as e: 
-        return f"❌ Lỗi đồng bộ: {str(e)}"
+        return False
 
 
 def sync_from_google_to_local():
@@ -118,6 +117,7 @@ def load_titles():
 
 def save_titles(df):
     df.to_excel(TITLES_FILE, index=False)
+    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
 
 
 def load_users():
@@ -140,6 +140,8 @@ def load_users():
 
 def save_users(df):
     df.to_excel(USER_FILE, index=False)
+    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
+
 
 def sync_single_record_to_google(record_dict):
     try:
@@ -155,8 +157,8 @@ def sync_single_record_to_google(record_dict):
         ])
         return True
     except Exception as e:
-        st.error(f"⚠️ Lỗi đồng bộ tự động: {str(e)}")
         return False
+
 
 def apply_custom_css():
     st.markdown("""
@@ -282,7 +284,7 @@ def delete_confirmation_dialog(target_title):
         df_titles = load_titles()
         df_titles = df_titles[df_titles["Tên Tiêu đề"] != target_title]
         save_titles(df_titles)
-        st.success(f"Đã xóa thành công tiêu đề '{target_title}'.")
+        st.success(f"Đã xóa thành công tiêu đề '{target_title}' (đã đồng bộ Cloud).")
         st.rerun()
         
     st.write("")
@@ -304,6 +306,7 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
             if row_index_to_delete in df_att.index:
                 df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
                 df_att.to_excel(ATTENDANCE_FILE, index=False)
+                sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
                 st.success(f"Đã xóa thành công lượt điểm danh của: {row_data['Họ tên']}")
                 st.rerun()
             else:
@@ -322,6 +325,7 @@ def delete_all_attendance_dialog():
     if st.button("🚨 Đồng ý xóa sạch", use_container_width=True, key="btn_confirm_delete_all"):
         if os.path.exists(ATTENDANCE_FILE):
             os.remove(ATTENDANCE_FILE)
+        sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
         st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
         st.rerun()
         
@@ -335,7 +339,7 @@ def main():
         page_title="TTTM SATRA Phạm Hùng - Hệ Thống Điểm Danh", layout="wide"
     )
     
-    # Tự động kéo dữ liệu mới nhất từ Google Sheets về local ngay khi app khởi động
+    # Kéo dữ liệu mới nhất từ Google Sheets về khi khởi động
     sync_from_google_to_local()
     
     apply_custom_css()
@@ -424,13 +428,11 @@ def main():
                         vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
                         formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
                         
-                        # 1. Đóng gói dữ liệu
                         record_data = {
                             "Nội dung": nq_title, "Ngày học": nq_date, "Họ tên": selected_name,
                             "Phòng ban": default_pb, "Chức vụ": default_cv, "Thời gian điểm danh": formatted_time
                         }
                         
-                        # 2. Lưu vào file Local
                         if os.path.exists(ATTENDANCE_FILE):
                             df_att = pd.read_excel(ATTENDANCE_FILE)
                             if "Nội dung Nghị quyết" in df_att.columns: df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
@@ -439,7 +441,6 @@ def main():
                             df_att = pd.DataFrame([record_data])
                         df_att.to_excel(ATTENDANCE_FILE, index=False)
                         
-                        # 3. GỌI HÀM SYNC TỰ ĐỘNG
                         with st.spinner("Đang lưu lên hệ thống Cloud..."):
                             sync_success = sync_single_record_to_google(record_data)
                         
@@ -577,8 +578,8 @@ def main():
                         else:
                             new_row = pd.DataFrame([{"Tên Tiêu đề": title_input, "Ngày học": formatted_date_str}])
                             df_titles_current = pd.concat([df_titles_current, new_row], ignore_index=True)
-                            save_titles(df_titles_current)
-                            st.success("✨ Đã tạo mã QR và thêm tiêu đề thành công!")
+                            save_titles(df_titles_current)  # Đã tự động sync Cloud bên trong save_titles
+                            st.success("✨ Đã tạo mã QR và đồng bộ lên Cloud thành công!")
                             st.rerun()
 
                 st.write("")
@@ -726,6 +727,7 @@ def main():
                                 if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
                                     df_remaining = df_att[df_att["Nội dung"] != target_event]
                                     df_remaining.to_excel(ATTENDANCE_FILE, index=False)
+                                    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
                                     st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
                                     st.rerun()
                                 st.write("")
@@ -764,14 +766,13 @@ def main():
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
                 st.write("")
 
-                st.markdown("#### ☁️ Đồng bộ dữ liệu lên Google Sheets dự phòng")
-                if st.button("🔄 Đồng bộ dữ liệu ngay", use_container_width=True):
+                # Nút đồng bộ thủ công vẫn giữ lại như nút dự phòng (nhấn vào sẽ sync lại toàn bộ)
+                if st.button("🔄 Đồng bộ dữ liệu thủ công ngay", use_container_width=True):
                     with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
-                        res_msg = sync_to_google()
-                        if "✅" in res_msg:
-                            st.success(res_msg)
+                        if sync_to_google():
+                            st.success("✅ Đồng bộ dữ liệu lên Google Sheets thành công!")
                         else:
-                            st.error(res_msg)
+                            st.error("❌ Lỗi đồng bộ Google Sheets.")
                 
                 st.write("---")
 
@@ -799,8 +800,8 @@ def main():
                                     "Quyền hạn": new_role
                                 }])
                                 df_users = pd.concat([df_users, new_u_row], ignore_index=True)
-                                save_users(df_users)
-                                st.success(f"✨ Đã tạo thành công tài khoản: **{new_username.strip()}**")
+                                save_users(df_users)  # Đã tự động sync Cloud bên trong save_users
+                                st.success(f"✨ Đã tạo thành công tài khoản: **{new_username.strip()}** (đã đồng bộ Cloud)")
                                 st.rerun()
 
                     st.markdown("#### 🔑 Thay Đổi Mật Khẩu")
@@ -814,8 +815,8 @@ def main():
                                 st.error("⚠️ Vui lòng nhập mật khẩu mới!")
                             else:
                                 df_users.loc[df_users["Tên đăng nhập"] == target_user, "Mật khẩu"] = str(new_pwd).strip()
-                                save_users(df_users)
-                                st.success(f"✨ Đã đổi mật khẩu thành công cho tài khoản: **{target_user}**")
+                                save_users(df_users)  # Đã tự động sync Cloud bên trong save_users
+                                st.success(f"✨ Đã đổi mật khẩu thành công cho tài khoản: **{target_user}** (đã đồng bộ Cloud)")
                                 st.rerun()
 
                 with col_u2:
@@ -834,8 +835,8 @@ def main():
                                 st.error("❌ Không thể xóa tài khoản Quản trị viên gốc (admin)!")
                             else:
                                 df_users = df_users[df_users["Tên đăng nhập"] != del_user]
-                                save_users(df_users)
-                                st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công.")
+                                save_users(df_users)  # Đã tự động sync Cloud bên trong save_users
+                                st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công (đã đồng bộ Cloud).")
                                 st.rerun()
 
 if __name__ == "__main__":
