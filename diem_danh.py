@@ -60,8 +60,29 @@ def sync_to_google():
                 ws.update([df.columns.values.tolist()] + df.values.tolist())
         return "✅ Đồng bộ dữ liệu lên Google Sheets thành công!"
     except Exception as e: 
-        # Trả về lỗi để bạn biết nếu có vấn đề
         return f"❌ Lỗi đồng bộ: {str(e)}"
+
+
+def sync_from_google_to_local():
+    """Tải dữ liệu từ Google Sheets về lại file Excel cục bộ khi app khởi động để tránh mất dữ liệu"""
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open(SHEET_NAME)
+        
+        for sheet_key, filename in FILES_MAP.items():
+            try:
+                ws = spreadsheet.worksheet(sheet_key)
+                data = ws.get_all_records()
+                if data:
+                    df = pd.DataFrame(data)
+                    df.to_excel(filename, index=False)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 def load_data():
@@ -313,6 +334,10 @@ def main():
     st.set_page_config(
         page_title="TTTM SATRA Phạm Hùng - Hệ Thống Điểm Danh", layout="wide"
     )
+    
+    # Tự động kéo dữ liệu mới nhất từ Google Sheets về local ngay khi app khởi động
+    sync_from_google_to_local()
+    
     apply_custom_css()
 
     if "logged_in" not in st.session_state:
@@ -739,7 +764,6 @@ def main():
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
                 st.write("")
 
-                # NÚT ĐỒNG BỘ GOOGLE SHEETS NẰM Ở ĐÂY CHO ADMIN
                 st.markdown("#### ☁️ Đồng bộ dữ liệu lên Google Sheets dự phòng")
                 if st.button("🔄 Đồng bộ dữ liệu ngay", use_container_width=True):
                     with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
