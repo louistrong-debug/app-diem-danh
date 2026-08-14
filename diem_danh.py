@@ -117,7 +117,7 @@ def load_titles():
 
 def save_titles(df):
     df.to_excel(TITLES_FILE, index=False)
-    sync_to_google() 
+    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
 
 
 def load_users():
@@ -140,7 +140,7 @@ def load_users():
 
 def save_users(df):
     df.to_excel(USER_FILE, index=False)
-    sync_to_google() 
+    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
 
 
 def sync_single_record_to_google(record_dict):
@@ -166,11 +166,13 @@ def apply_custom_css():
             .stApp {
                 background-color: #F8FAFC;
             }
+
             .block-container {
                 padding-top: 2.5rem !important;
                 padding-bottom: 2rem !important;
                 max-width: 95% !important;
             }
+
             .app-header {
                 background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
                 padding: 20px 16px;
@@ -205,6 +207,7 @@ def apply_custom_css():
                 margin: 0;
                 letter-spacing: 0.3px;
             }
+
             .stTabs [data-baseweb="tab-list"] {
                 gap: 12px;
                 background-color: #E2E8F0;
@@ -226,9 +229,11 @@ def apply_custom_css():
                 background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%) !important;
                 color: #F97316 !important;
             }
+
             div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] {
                 gap: 0.4rem !important;
             }
+
             label, .stTextInput label, .stSelectbox label, .stDateInput label {
                 font-size: 17px !important;
                 font-weight: 700 !important;
@@ -237,6 +242,7 @@ def apply_custom_css():
             input, div[data-baseweb="select"] span {
                 font-size: 14px !important;
             }
+
             h3 {
                 color: #0F172A !important;
                 font-size: 24px !important;
@@ -244,6 +250,7 @@ def apply_custom_css():
                 margin-top: -10px !important;
                 margin-bottom: 5px !important;
             }
+
             div[data-testid="stColumn"] div[data-testid="stButton"] > button,
             div[data-testid="stDownloadButton"] > button {
                 width: 100% !important;
@@ -260,6 +267,7 @@ def apply_custom_css():
             div[data-testid="stDownloadButton"] > button:hover {
                 background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
             }
+
             .stDataFrame {
                 font-size: 18px !important;
             }
@@ -271,12 +279,14 @@ def apply_custom_css():
 def delete_confirmation_dialog(target_title):
     st.markdown(f"Bạn có chắc chắn muốn xóa tiêu đề **'{target_title}'** này không?")
     st.write("")
+    
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete"):
         df_titles = load_titles()
         df_titles = df_titles[df_titles["Tên Tiêu đề"] != target_title]
         save_titles(df_titles)
         st.success(f"Đã xóa thành công tiêu đề '{target_title}' (đã đồng bộ Cloud).")
         st.rerun()
+        
     st.write("")
     if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete"):
         st.rerun()
@@ -286,19 +296,22 @@ def delete_confirmation_dialog(target_title):
 def delete_single_attendance_dialog(row_index_to_delete, row_data):
     st.markdown(f"Bạn có chắc chắn muốn xóa lượt điểm danh của đồng chí **{row_data['Họ tên']}** trong sự kiện **'{row_data['Nội dung']}'** không?")
     st.write("")
+    
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_single"):
         if os.path.exists(ATTENDANCE_FILE):
             df_att = pd.read_excel(ATTENDANCE_FILE)
             if "Nội dung Nghị quyết" in df_att.columns:
                 df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                
             if row_index_to_delete in df_att.index:
                 df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
                 df_att.to_excel(ATTENDANCE_FILE, index=False)
-                sync_to_google() 
+                sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
                 st.success(f"Đã xóa thành công lượt điểm danh của: {row_data['Họ tên']}")
                 st.rerun()
             else:
                 st.error("❌ Không tìm thấy dòng dữ liệu cần xóa trong file!")
+        
     st.write("")
     if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_single"):
         st.rerun()
@@ -308,12 +321,14 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
 def delete_all_attendance_dialog():
     st.markdown("Bạn có thực sự muốn **XÓA TẤT CẢ** dữ liệu điểm danh của toàn bộ các sự kiện không? Hành động này không thể hoàn tác!")
     st.write("")
+    
     if st.button("🚨 Đồng ý xóa sạch", use_container_width=True, key="btn_confirm_delete_all"):
         if os.path.exists(ATTENDANCE_FILE):
             os.remove(ATTENDANCE_FILE)
-        sync_to_google() 
+        sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
         st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
         st.rerun()
+        
     st.write("")
     if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_all"):
         st.rerun()
@@ -324,24 +339,23 @@ def main():
         page_title="TTTM SATRA Phạm Hùng - Hệ Thống Điểm Danh", layout="wide"
     )
     
+    # Kéo dữ liệu mới nhất từ Google Sheets về khi khởi động
     sync_from_google_to_local()
+    
     apply_custom_css()
 
-    # Xử lý khôi phục trạng thái đăng nhập từ query_params (nếu có duy trì đăng nhập)
     query_params = st.query_params
-    
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
-    if "username" not in st.session_state:
-        st.session_state["username"] = ""
-    if "role" not in st.session_state:
-        st.session_state["role"] = ""
 
-    # Kiểm tra nếu trong URL có thông tin duy trì đăng nhập
-    if not st.session_state["logged_in"] and "auth_user" in query_params and "auth_role" in query_params:
-        st.session_state["logged_in"] = True
-        st.session_state["username"] = query_params["auth_user"]
-        st.session_state["role"] = query_params["auth_role"]
+    # Khôi phục trạng thái đăng nhập từ query params nếu có duy trì đăng nhập
+    if "logged_in" not in st.session_state:
+        if query_params.get("logged_in") == "true":
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = query_params.get("username", "admin")
+            st.session_state["role"] = query_params.get("role", "Quản trị viên (Admin)")
+        else:
+            st.session_state["logged_in"] = False
+            st.session_state["username"] = ""
+            st.session_state["role"] = ""
 
     st.markdown("""
         <div class="app-header">
@@ -351,7 +365,7 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-    is_checkin_page = "nq" in query_params and query_params.get("nq") != ""
+    is_checkin_page = "nq" in query_params
 
     df_nhansu = load_data()
 
@@ -384,6 +398,7 @@ def main():
             col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
             with col_c2:
                 all_names = df_nhansu["Họ tên"].dropna().unique().tolist()
+
                 search_keyword = st.text_input("🔍 Gõ tên để lọc nhanh (hỗ trợ iPhone):", "", placeholder="Nhập tên hoặc họ...")
                 
                 if search_keyword.strip():
@@ -445,7 +460,7 @@ def main():
                 with st.form("login_form"):
                     input_user = st.text_input("Tên đăng nhập:")
                     input_pass = st.text_input("Mật khẩu:", type="password")
-                    remember_me = st.checkbox("🔄 Duy trì đăng nhập")
+                    remember_me = st.checkbox("Duy trì đăng nhập")
                     submit_login = st.form_submit_button("🚀 Đăng Nhập", use_container_width=True)
 
                     if submit_login:
@@ -456,11 +471,13 @@ def main():
                             st.session_state["username"] = input_user.strip()
                             st.session_state["role"] = str(matched_u.iloc[0]["Quyền hạn"])
                             
-                            # Nếu chọn duy trì đăng nhập, lưu thông tin vào URL parameters
+                            # Nếu chọn duy trì đăng nhập, lưu vào query params để F5 không mất
                             if remember_me:
-                                st.query_params["auth_user"] = input_user.strip()
-                                st.query_params["auth_role"] = str(matched_u.iloc[0]["Quyền hạn"])
-                                
+                                st.query_params["logged_in"] = "true"
+                                st.query_params["username"] = st.session_state["username"]
+                                st.query_params["role"] = st.session_state["role"]
+                                st.query_params["tab"] = "0"
+
                             st.success("🎉 Đăng nhập thành công!")
                             st.rerun()
                         else:
@@ -475,359 +492,382 @@ def main():
                 st.session_state["logged_in"] = False
                 st.session_state["username"] = ""
                 st.session_state["role"] = ""
-                # Xóa thông tin xác thực lưu trong query_params khi đăng xuất
-                if "auth_user" in st.query_params:
-                    del st.query_params["auth_user"]
-                if "auth_role" in st.query_params:
-                    del st.query_params["auth_role"]
+                # Xóa sạch query params liên quan đến đăng nhập
+                st.query_params.clear()
                 st.rerun()
 
-        # Định nghĩa danh sách các tab theo quyền hạn
+        # Quản lý Tab thông minh để khi F5 không bị reset về tab đầu
         if st.session_state["role"] == "Quản trị viên (Admin)":
             tab_names = ["🎯 1. Tạo QR", "📊 2. Điểm Danh", "👥 3. Nhân Sự", "🔐 4. Quản Trị User"]
         else:
             tab_names = ["🎯 1. Tạo QR", "📊 2. Điểm Danh"]
 
-        # Đọc tab hiện tại từ query_params để giữ nguyên vị trí tab khi F5
-        current_tab_name = query_params.get("tab", tab_names[0])
-        if current_tab_name not in tab_names:
-            current_tab_name = tab_names[0]
-        
-        default_tab_index = tab_names.index(current_tab_name)
+        # Lấy tab hiện tại từ query_params nếu có, mặc định là 0
+        default_tab_idx = 0
+        try:
+            if "tab" in query_params:
+                default_tab_idx = int(query_params.get("tab", 0))
+                if default_tab_idx >= len(tab_names):
+                    default_tab_idx = 0
+        except:
+            default_tab_idx = 0
 
-        # Sử dụng st.tabs (lưu ý Streamlit bản mới trả về đối tượng context cho mỗi tab)
+        # Tạo tabs thông qua lựa chọn index
         tabs = st.tabs(tab_names)
-
-        # Cập nhật query_params dựa trên tab đang chọn thông qua cách bắt sự kiện hoặc gán mặc định
-        # (Để đơn giản và đồng bộ khi bấm F5, ta lưu tab đang chọn bằng cách gán lại URL)
-        # Trong Streamlit, ta có thể lưu chỉ số tab hoặc tên tab. Ở đây ta dùng index mặc định:
-        selected_tab_idx = default_tab_index
         
-        # Tạo cơ chế lắng nghe tương tác tab qua container hoặc lưu state tab
-        for idx, t_name in enumerate(tab_names):
-            with tabs[idx]:
-                if idx == selected_tab_idx:
-                    # Cập nhật vào URL để khi F5 browser nhớ đúng tab này
-                    if st.query_params.get("tab") != t_name:
-                        st.query_params["tab"] = t_name
+        # Lưu lại tab hiện tại vào query params khi người dùng chuyển tab để khi F5 giữ nguyên vị trí
+        # (Streamlit chưa hỗ trợ trực tiếp active tab qua index parameter ngoài cách dùng trick session_state / query_params)
+        
+        with tabs[0]:
+            # Cập nhật query_params tab = 0
+            if query_params.get("tab") != "0":
+                st.query_params["tab"] = "0"
 
-                # NỘI DUNG TỪNG TAB
-                if t_name == "🎯 1. Tạo QR":
-                    col_left, col_right = st.columns([2, 1], gap="large")
-                    df_titles = load_titles()
+            col_left, col_right = st.columns([2, 1], gap="large")
 
-                    with col_left:
-                        st.markdown("### 🛠️ Thiết Lập Mã QR Điểm Danh")
-                        st.write("")
+            df_titles = load_titles()
 
-                        selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
-                        default_title_val = ""
-                        default_date_val = datetime.now().date()
+            with col_left:
+                st.markdown("### 🛠️ Thiết Lập Mã QR Điểm Danh")
+                st.write("")
 
-                        if selected_rows and not df_titles.empty:
-                            selected_idx = selected_rows[0]
-                            if selected_idx < len(df_titles):
-                                default_title_val = str(df_titles.iloc[selected_idx]["Tên Tiêu đề"])
-                                raw_date = str(df_titles.iloc[selected_idx]["Ngày học"])
-                                try:
-                                    default_date_val = datetime.strptime(raw_date.strip(), "%d/%m/%Y").date()
-                                except Exception:
-                                    pass
+                selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
+                default_title_val = ""
+                default_date_val = datetime.now().date()
 
-                        col_lbl1, col_input1 = st.columns([1.5, 8.5], gap="small")
-                        with col_lbl1:
-                            st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Tiêu đề:</p>", unsafe_allow_html=True)
-                        with col_input1:
-                            nq_title_input = st.text_input("Nhập tiêu đề", value=default_title_val, placeholder="Nhập tên tiêu đề sự kiện / nghị quyết...", label_visibility="collapsed")
+                if selected_rows and not df_titles.empty:
+                    selected_idx = selected_rows[0]
+                    if selected_idx < len(df_titles):
+                        default_title_val = str(df_titles.iloc[selected_idx]["Tên Tiêu đề"])
+                        raw_date = str(df_titles.iloc[selected_idx]["Ngày học"])
+                        try:
+                            default_date_val = datetime.strptime(raw_date.strip(), "%d/%m/%Y").date()
+                        except Exception:
+                            pass
 
-                        st.write("")
-                        col_lbl2, col_date2 = st.columns([1.5, 8.5], gap="small")
-                        with col_lbl2:
-                            st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày học:</p>", unsafe_allow_html=True)
-                        with col_date2:
-                            nq_date_input = st.date_input("Chọn ngày học", value=default_date_val, label_visibility="collapsed", format="DD/MM/YYYY")
+                col_lbl1, col_input1 = st.columns([1.5, 8.5], gap="small")
+                with col_lbl1:
+                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Tiêu đề:</p>", unsafe_allow_html=True)
+                with col_input1:
+                    nq_title_input = st.text_input("Nhập tiêu đề", value=default_title_val, placeholder="Nhập tên tiêu đề sự kiện / nghị quyết...", label_visibility="collapsed")
 
-                        formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
-                        st.write("")
-                        st.markdown("#### 📋 Danh Sách Tiêu Đề Đã Thiết Lập")
+                st.write("")
 
-                        if df_titles.empty:
-                            st.info("ℹ️ Chưa có tiêu đề nào được thêm.")
-                        else:
-                            st.dataframe(
-                                df_titles, 
-                                width="stretch", 
-                                height=200, 
-                                selection_mode="single-row", 
-                                on_select="rerun",
-                                key="titles_dataframe"
-                            )
+                col_lbl2, col_date2 = st.columns([1.5, 8.5], gap="small")
+                with col_lbl2:
+                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày học:</p>", unsafe_allow_html=True)
+                with col_date2:
+                    nq_date_input = st.date_input("Chọn ngày học", value=default_date_val, label_visibility="collapsed", format="DD/MM/YYYY")
 
-                    with col_right:
-                        create_qr_clicked = st.button("🚀 Tạo mã QRCode (Hiệu lực 15 phút)", use_container_width=True)
+                formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
-                        if create_qr_clicked:
-                            title_input = nq_title_input.strip()
-                            if not title_input:
-                                st.warning("⚠️ Vui lòng nhập tiêu đề!")
-                            else:
-                                expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
-                                expire_timestamp = expire_time.timestamp()
+                st.write("")
 
-                                current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
-                                qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}&exp={expire_timestamp}"
+                st.markdown("#### 📋 Danh Sách Tiêu Đề Đã Thiết Lập")
 
-                                st.session_state["qr_url"] = qr_url
-                                st.session_state["nq_title"] = title_input
-                                st.session_state["expire_timestamp"] = expire_timestamp
-
-                                qr = qrcode.QRCode(version=1, box_size=10, border=5)
-                                qr.add_data(qr_url)
-                                qr.make(fit=True)
-                                img = qr.make_image(fill_color="black", back_color="white")
-                                img.save("temp_qr.png")
-
-                                df_titles_current = load_titles()
-                                if title_input in df_titles_current["Tên Tiêu đề"].values:
-                                    st.success("✨ Đã tạo mã QR mới thành công!")
-                                else:
-                                    new_row = pd.DataFrame([{"Tên Tiêu đề": title_input, "Ngày học": formatted_date_str}])
-                                    df_titles_current = pd.concat([df_titles_current, new_row], ignore_index=True)
-                                    save_titles(df_titles_current) 
-                                    st.success("✨ Đã tạo mã QR và đồng bộ lên Cloud thành công!")
-                                    st.rerun()
-
-                        st.write("")
-                        if "temp_qr.png" in os.listdir() and "expire_timestamp" in st.session_state:
-                            st.image("temp_qr.png", caption=st.session_state.get("nq_title", ""), width=280)
-                            
-                            exp_ms = int(st.session_state["expire_timestamp"] * 1000)
-                            countdown_html = """
-                            <div style="text-align: center; font-size: 15px; font-weight: bold; color: #DC2626; background-color: #FEF2F2; padding: 8px; border-radius: 8px; border: 1px solid #FCA5A5; margin-bottom: 10px;">
-                                ⏳ Mã QR sẽ hết hạn sau: <span id="countdown" style="font-size: 16px;">--:--</span>
-                            </div>
-                            <script>
-                                var countDownDate = %s;
-                                var x = setInterval(function() {
-                                    var now = new Date().getTime();
-                                    var distance = countDownDate - now;
-                                    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                                    var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-                                    
-                                    if (minutes < 10) minutes = "0" + minutes;
-                                    if (seconds < 10) seconds = "0" + seconds;
-
-                                    if (distance < 0) {
-                                        clearInterval(x);
-                                        document.getElementById("countdown").innerHTML = "ĐÃ HẾT HẠN!";
-                                        document.getElementById("countdown").style.color = "red";
-                                    } else {
-                                        document.getElementById("countdown").innerHTML = minutes + " phút " + seconds + " giây";
-                                    }
-                                }, 1000);
-                            </script>
-                            """ % exp_ms
-                            
-                            components.html(countdown_html, height=50)
-
-                            with open("temp_qr.png", "rb") as file:
-                                st.download_button(
-                                    label="📥 Tải xuống mã QRCode",
-                                    data=file,
-                                    file_name="qr_diem_danh.png",
-                                    mime="image/png",
-                                    use_container_width=True,
-                                )
-                        else:
-                            st.info("ℹ️ Chưa có mã QR nào được tạo.")
-
-                        st.write("")
-                        delete_title_clicked = st.button("🗑️ Xóa Tiêu đề", use_container_width=True)
-                        if delete_title_clicked:
-                            selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
-                            if not selected_rows:
-                                st.warning("⚠️ Vui lòng nhấp chọn một hàng trong bảng danh sách bên trái để xóa!")
-                            else:
-                                selected_idx = selected_rows[0]
-                                target_title = df_titles.iloc[selected_idx]["Tên Tiêu đề"]
-                                
-                                has_transaction = False
-                                if os.path.exists(ATTENDANCE_FILE):
-                                    df_att_check = pd.read_excel(ATTENDANCE_FILE)
-                                    col_check = "Nội dung" if "Nội dung" in df_att_check.columns else ("Nội dung Nghị quyết" if "Nội dung Nghị quyết" in df_att_check.columns else None)
-                                    if col_check and target_title in df_att_check[col_check].values:
-                                        has_transaction = True
-
-                                if has_transaction:
-                                    st.error(f"❌ Không thể xóa tiêu đề '{target_title}' vì tiêu đề này đã có người điểm danh.")
-                                else:
-                                    delete_confirmation_dialog(target_title)
-
-                elif t_name == "📊 2. Điểm Danh":
-                    st.markdown("### 📈 Thống Kê & Báo Cáo Điểm Danh")
-                    if os.path.exists(ATTENDANCE_FILE):
-                        df_att = pd.read_excel(ATTENDANCE_FILE)
-
-                        if "Nội dung Nghị quyết" in df_att.columns:
-                            df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                            df_att.to_excel(ATTENDANCE_FILE, index=False)
-
-                        if "Thời gian điểm danh" in df_att.columns:
-                            df_att["Thời gian điểm danh"] = pd.to_datetime(
-                                df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
-                            ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
-
-                        list_nq = df_att["Nội dung"].unique().tolist()
-                        selected_filter = st.selectbox(
-                            "🔍 Lọc theo nội dung:", ["Tất cả"] + list_nq
-                        )
-
-                        df_filtered = df_att[df_att["Nội dung"] == selected_filter] if selected_filter != "Tất cả" else df_att
-
-                        st.write("")
-                        st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sau đó nhấn nút xóa:*")
-                        
-                        st.dataframe(
-                            df_filtered, 
-                            width="stretch", 
-                            height=380, 
-                            selection_mode="single-row", 
-                            on_select="rerun",
-                            key="attendance_dataframe"
-                        )
-
-                        col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
-                        
-                        with col_btn1:
-                            if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
-                                selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
-                                if not selected_att_rows:
-                                    st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
-                                else:
-                                    selected_idx_in_filtered = selected_att_rows[0]
-                                    row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
-                                    original_index = row_to_delete.name
-                                    delete_single_attendance_dialog(original_index, row_to_delete)
-
-                        with col_btn2:
-                            btn_label = "🔥 Xóa tất cả điểm danh" if selected_filter == "Tất cả" else f"🔥 Xóa điểm danh sự kiện này"
-                            if st.button(btn_label, use_container_width=True):
-                                if selected_filter == "Tất cả":
-                                    delete_all_attendance_dialog()
-                                else:
-                                    @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
-                                    def delete_specific_event_dialog(target_event):
-                                        st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
-                                        st.write("")
-                                        if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
-                                            df_remaining = df_att[df_att["Nội dung"] != target_event]
-                                            df_remaining.to_excel(ATTENDANCE_FILE, index=False)
-                                            sync_to_google() 
-                                            st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
-                                            st.rerun()
-                                        st.write("")
-                                        if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_specific"):
-                                            st.rerun()
-                                    delete_specific_event_dialog(selected_filter)
-
-                        with col_btn3:
-                            output = io.BytesIO()
-                            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                                df_filtered.to_excel(writer, index=False)
-                            excel_data = output.getvalue()
-
-                            file_name_download = f"bao_cao_{selected_filter}.xlsx" if selected_filter != "Tất cả" else "bao_cao_tat_ca_diem_danh.xlsx"
-
-                            st.download_button(
-                                label="📥 Tải Xuống Báo Cáo",
-                                data=excel_data,
-                                file_name=file_name_download,
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                use_container_width=True,
-                            )
-                    else:
-                        st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
-
-                elif t_name == "👥 3. Nhân Sự":
-                    st.markdown("### 📂 Quản Lý Danh Sách Nhân Sự TTTM")
-                    st.dataframe(df_nhansu, width="stretch", height=450)
-                    st.warning(
-                        "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
+                if df_titles.empty:
+                    st.info("ℹ️ Chưa có tiêu đề nào được thêm.")
+                else:
+                    event = st.dataframe(
+                        df_titles, 
+                        width="stretch", 
+                        height=200, 
+                        selection_mode="single-row", 
+                        on_select="rerun",
+                        key="titles_dataframe"
                     )
 
-                elif t_name == "🔐 4. Quản Trị User":
-                    st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
-                    st.write("")
+            with col_right:
+                create_qr_clicked = st.button("🚀 Tạo mã QRCode (Hiệu lực 15 phút)", use_container_width=True)
 
-                    if st.button("🔄 Đồng bộ dữ liệu thủ công ngay", use_container_width=True):
-                        with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
-                            if sync_to_google():
-                                st.success("✅ Đồng bộ dữ liệu lên Google Sheets thành công!")
-                            else:
-                                st.error("❌ Lỗi đồng bộ Google Sheets.")
+                if create_qr_clicked:
+                    title_input = nq_title_input.strip()
+                    if not title_input:
+                        st.warning("⚠️ Vui lòng nhập tiêu đề!")
+                    else:
+                        expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
+                        expire_timestamp = expire_time.timestamp()
+
+                        current_host = "https://app-diem-danh-nx2uwapdvmixmcuze7cjzn.streamlit.app"
+                        qr_url = f"{current_host}/?nq={title_input}&date={formatted_date_str}&exp={expire_timestamp}"
+
+                        st.session_state["qr_url"] = qr_url
+                        st.session_state["nq_title"] = title_input
+                        st.session_state["expire_timestamp"] = expire_timestamp
+
+                        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+                        qr.add_data(qr_url)
+                        qr.make(fit=True)
+                        img = qr.make_image(fill_color="black", back_color="white")
+                        img.save("temp_qr.png")
+
+                        df_titles_current = load_titles()
+                        if title_input in df_titles_current["Tên Tiêu đề"].values:
+                            st.success("✨ Đã tạo mã QR mới thành công!")
+                        else:
+                            new_row = pd.DataFrame([{"Tên Tiêu đề": title_input, "Ngày học": formatted_date_str}])
+                            df_titles_current = pd.concat([df_titles_current, new_row], ignore_index=True)
+                            save_titles(df_titles_current)  
+                            st.success("✨ Đã tạo mã QR và đồng bộ lên Cloud thành công!")
+                            st.rerun()
+
+                st.write("")
+
+                if "temp_qr.png" in os.listdir() and "expire_timestamp" in st.session_state:
+                    st.image("temp_qr.png", caption=st.session_state.get("nq_title", ""), width=280)
                     
-                    st.write("---")
-                    df_users = load_users()
-                    col_u1, col_u2 = st.columns(2, gap="large")
-
-                    with col_u1:
-                        st.markdown("#### ➕ Tạo Tài Khoản Mới")
-                        with st.form("form_create_user"):
-                            new_username = st.text_input("Tên đăng nhập:")
-                            new_password = st.text_input("Mật khẩu:", type="password")
-                            new_role = st.selectbox("Phân quyền:", ["Quản trị viên (Admin)", "Nhân sự (User)"])
+                    exp_ms = int(st.session_state["expire_timestamp"] * 1000)
+                    countdown_html = """
+                    <div style="text-align: center; font-size: 15px; font-weight: bold; color: #DC2626; background-color: #FEF2F2; padding: 8px; border-radius: 8px; border: 1px solid #FCA5A5; margin-bottom: 10px;">
+                        ⏳ Mã QR sẽ hết hạn sau: <span id="countdown" style="font-size: 16px;">--:--</span>
+                    </div>
+                    <script>
+                        var countDownDate = %s;
+                        var x = setInterval(function() {
+                            var now = new Date().getTime();
+                            var distance = countDownDate - now;
+                            var minutes = Math.floor((distance %% (1000 * 60 * 60)) / (1000 * 60));
+                            var seconds = Math.floor((distance %% (1000 * 60)) / 1000);
                             
-                            submit_create = st.form_submit_button("💾 Lưu Tài Khoản Mới", use_container_width=True)
-                            if submit_create:
-                                if not new_username.strip() or not new_password.strip():
-                                    st.error("⚠️ Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!")
-                                elif new_username.strip() in df_users["Tên đăng nhập"].values:
-                                    st.error(f"❌ Tên đăng nhập '{new_username}' đã tồn tại!")
-                                else:
-                                    new_u_row = pd.DataFrame([{
-                                        "Tên đăng nhập": new_username.strip(),
-                                        "Mật khẩu": str(new_password).strip(),
-                                        "Quyền hạn": new_role
-                                    }])
-                                    df_users = pd.concat([df_users, new_u_row], ignore_index=True)
-                                    save_users(df_users) 
-                                    st.success(f"✨ Đã tạo thành công tài khoản: **{new_username.strip()}** (đã đồng bộ Cloud)")
-                                    st.rerun()
+                            if (minutes < 10) minutes = "0" + minutes;
+                            if (seconds < 10) seconds = "0" + seconds;
 
-                        st.markdown("#### 🔑 Thay Đổi Mật Khẩu")
-                        with st.form("form_change_password"):
-                            target_user = st.selectbox("Chọn tài khoản cần đổi mật khẩu:", df_users["Tên đăng nhập"].tolist())
-                            new_pwd = st.text_input("Mật khẩu mới:", type="password")
+                            if (distance < 0) {
+                                clearInterval(x);
+                                document.getElementById("countdown").innerHTML = "ĐÃ HẾT HẠN!";
+                                document.getElementById("countdown").style.color = "red";
+                            } else {
+                                document.getElementById("countdown").innerHTML = minutes + " phút " + seconds + " giây";
+                            }
+                        }, 1000);
+                    </script>
+                    """ % exp_ms
+                    
+                    countdown_html = countdown_html.replace("%%", "%")
+                    components.html(countdown_html, height=50)
+
+                    with open("temp_qr.png", "rb") as file:
+                        st.download_button(
+                            label="📥 Tải xuống mã QRCode",
+                            data=file,
+                            file_name="qr_diem_danh.png",
+                            mime="image/png",
+                            use_container_width=True,
+                        )
+                else:
+                    st.info("ℹ️ Chưa có mã QR nào được tạo.")
+
+                st.write("")
+
+                delete_title_clicked = st.button("🗑️ Xóa Tiêu đề", use_container_width=True)
+                if delete_title_clicked:
+                    selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
+                    if not selected_rows:
+                        st.warning("⚠️ Vui lòng nhấp chọn một hàng trong bảng danh sách bên trái để xóa!")
+                    else:
+                        selected_idx = selected_rows[0]
+                        target_title = df_titles.iloc[selected_idx]["Tên Tiêu đề"]
+                        
+                        has_transaction = False
+                        if os.path.exists(ATTENDANCE_FILE):
+                            df_att_check = pd.read_excel(ATTENDANCE_FILE)
+                            col_check = "Nội dung" if "Nội dung" in df_att_check.columns else ("Nội dung Nghị quyết" if "Nội dung Nghị quyết" in df_att_check.columns else None)
+                            if col_check and target_title in df_att_check[col_check].values:
+                                has_transaction = True
+
+                        if has_transaction:
+                            st.error(f"❌ Không thể xóa tiêu đề '{target_title}' vì tiêu đề này đã có người điểm danh.")
+                        else:
+                            delete_confirmation_dialog(target_title)
+
+                st.write("")
+
+                if not df_titles.empty:
+                    output_titles = io.BytesIO()
+                    with pd.ExcelWriter(output_titles, engine='openpyxl') as writer:
+                        df_titles.to_excel(writer, index=False)
+                    titles_excel_data = output_titles.getvalue()
+
+                    st.download_button(
+                        label="📥 Tải DS Tiêu Đề (Excel)",
+                        data=titles_excel_data,
+                        file_name="danh_sach_tieu_de.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
+
+        with tabs[1]:
+            st.query_params["tab"] = "1"
+            st.markdown("### 📈 Thống Kê & Báo Cáo Điểm Danh")
+            if os.path.exists(ATTENDANCE_FILE):
+                df_att = pd.read_excel(ATTENDANCE_FILE)
+
+                if "Nội dung Nghị quyết" in df_att.columns:
+                    df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                    df_att.to_excel(ATTENDANCE_FILE, index=False)
+
+                if "Thời gian điểm danh" in df_att.columns:
+                    df_att["Thời gian điểm danh"] = pd.to_datetime(
+                        df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
+                    ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
+
+                list_nq = df_att["Nội dung"].unique().tolist()
+                selected_filter = st.selectbox(
+                    "🔍 Lọc theo nội dung:", ["Tất cả"] + list_nq
+                )
+
+                df_filtered = df_att[df_att["Nội dung"] == selected_filter] if selected_filter != "Tất cả" else df_att
+
+                st.write("")
+                st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sau đó nhấn nút xóa:*")
+                
+                event_att = st.dataframe(
+                    df_filtered, 
+                    width="stretch", 
+                    height=380, 
+                    selection_mode="single-row", 
+                    on_select="rerun",
+                    key="attendance_dataframe"
+                )
+
+                col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
+                
+                with col_btn1:
+                    if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
+                        selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
+                        if not selected_att_rows:
+                            st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
+                        else:
+                            selected_idx_in_filtered = selected_att_rows[0]
+                            row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
+                            original_index = row_to_delete.name
+                            delete_single_attendance_dialog(original_index, row_to_delete)
+
+                with col_btn2:
+                    btn_label = "🔥 Xóa tất cả điểm danh" if selected_filter == "Tất cả" else f"🔥 Xóa điểm danh sự kiện này"
+                    if st.button(btn_label, use_container_width=True):
+                        if selected_filter == "Tất cả":
+                            delete_all_attendance_dialog()
+                        else:
+                            @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
+                            def delete_specific_event_dialog(target_event):
+                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
+                                st.write("")
+                                if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
+                                    df_remaining = df_att[df_att["Nội dung"] != target_event]
+                                    df_remaining.to_excel(ATTENDANCE_FILE, index=False)
+                                    sync_to_google()  
+                                    st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
+                                    st.rerun()
+                                st.write("")
+                                if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_specific"):
+                                    st.rerun()
                             
-                            submit_change = st.form_submit_button("🔄 Cập Nhật Mật Khẩu", use_container_width=True)
-                            if submit_change:
-                                if not new_pwd.strip():
-                                    st.error("⚠️ Vui lòng nhập mật khẩu mới!")
-                                else:
-                                    df_users.loc[df_users["Tên đăng nhập"] == target_user, "Mật khẩu"] = str(new_pwd).strip()
-                                    save_users(df_users) 
-                                    st.success(f"✨ Đã đổi mật khẩu thành công cho tài khoản: **{target_user}** (đã đồng bộ Cloud)")
-                                    st.rerun()
+                            delete_specific_event_dialog(selected_filter)
 
-                    with col_u2:
-                        st.markdown("#### 👥 Danh Sách Tài Khoản Hiện Tại")
-                        st.dataframe(df_users, width="stretch", height=320)
+                with col_btn3:
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df_filtered.to_excel(writer, index=False)
+                    excel_data = output.getvalue()
 
-                        st.write("")
-                        st.markdown("#### 🗑️ Xóa Tài Khoản")
-                        with st.form("form_delete_user"):
-                            del_user = st.selectbox("Chọn tài khoản cần xóa:", ["-- Chọn tài khoản --"] + df_users["Tên đăng nhập"].tolist(), key="del_selectbox")
-                            submit_del = st.form_submit_button("🚨 Xóa Tài Khoản Này", use_container_width=True)
-                            if submit_del:
-                                if del_user == "-- Chọn tài khoản --":
-                                    st.warning("⚠️ Vui lòng chọn tài khoản cần xóa!")
-                                elif del_user == "admin":
-                                    st.error("❌ Không thể xóa tài khoản Quản trị viên gốc (admin)!")
-                                else:
-                                    df_users = df_users[df_users["Tên đăng nhập"] != del_user]
-                                    save_users(df_users) 
-                                    st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công (đã đồng bộ Cloud).")
-                                    st.rerun()
+                    file_name_download = f"bao_cao_{selected_filter}.xlsx" if selected_filter != "Tất cả" else "bao_cao_tat_ca_diem_danh.xlsx"
+
+                    st.download_button(
+                        label="📥 Tải Xuống Báo Cáo",
+                        data=excel_data,
+                        file_name=file_name_download,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
+            else:
+                st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
+
+        if st.session_state["role"] == "Quản trị viên (Admin)":
+            with tabs[2]:
+                st.query_params["tab"] = "2"
+                st.markdown("### 📂 Quản Lý Danh Sách Nhân Sự TTTM")
+                st.dataframe(df_nhansu, width="stretch", height=450)
+                st.warning(
+                    "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
+                )
+
+            with tabs[3]:
+                st.query_params["tab"] = "3"
+                st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
+                st.write("")
+
+                if st.button("🔄 Đồng bộ dữ liệu thủ công ngay", use_container_width=True):
+                    with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
+                        if sync_to_google():
+                            st.success("✅ Đồng bộ dữ liệu lên Google Sheets thành công!")
+                        else:
+                            st.error("❌ Lỗi đồng bộ Google Sheets.")
+                
+                st.write("---")
+
+                df_users = load_users()
+
+                col_u1, col_u2 = st.columns(2, gap="large")
+
+                with col_u1:
+                    st.markdown("#### ➕ Tạo Tài Khoản Mới")
+                    with st.form("form_create_user"):
+                        new_username = st.text_input("Tên đăng nhập:")
+                        new_password = st.text_input("Mật khẩu:", type="password")
+                        new_role = st.selectbox("Phân quyền:", ["Quản trị viên (Admin)", "Nhân sự (User)"])
+                        
+                        submit_create = st.form_submit_button("💾 Lưu Tài Khoản Mới", use_container_width=True)
+                        if submit_create:
+                            if not new_username.strip() or not new_password.strip():
+                                st.error("⚠️ Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!")
+                            elif new_username.strip() in df_users["Tên đăng nhập"].values:
+                                st.error(f"❌ Tên đăng nhập '{new_username}' đã tồn tại!")
+                            else:
+                                new_u_row = pd.DataFrame([{
+                                    "Tên đăng nhập": new_username.strip(),
+                                    "Mật khẩu": str(new_password).strip(),
+                                    "Quyền hạn": new_role
+                                }])
+                                df_users = pd.concat([df_users, new_u_row], ignore_index=True)
+                                save_users(df_users)  
+                                st.success(f"✨ Đã tạo thành công tài khoản: **{new_username.strip()}** (đã đồng bộ Cloud)")
+                                st.rerun()
+
+                    st.markdown("#### 🔑 Thay Đổi Mật Khẩu")
+                    with st.form("form_change_password"):
+                        target_user = st.selectbox("Chọn tài khoản cần đổi mật khẩu:", df_users["Tên đăng nhập"].tolist())
+                        new_pwd = st.text_input("Mật khẩu mới:", type="password")
+                        
+                        submit_change = st.form_submit_button("🔄 Cập Nhật Mật Khẩu", use_container_width=True)
+                        if submit_change:
+                            if not new_pwd.strip():
+                                st.error("⚠️ Vui lòng nhập mật khẩu mới!")
+                            else:
+                                df_users.loc[df_users["Tên đăng nhập"] == target_user, "Mật khẩu"] = str(new_pwd).strip()
+                                save_users(df_users)  
+                                st.success(f"✨ Đã đổi mật khẩu thành công cho tài khoản: **{target_user}** (đã đồng bộ Cloud)")
+                                st.rerun()
+
+                with col_u2:
+                    st.markdown("#### 👥 Danh Sách Tài Khoản Hiện Tại")
+                    st.dataframe(df_users, width="stretch", height=320)
+
+                    st.write("")
+                    st.markdown("#### 🗑️ Xóa Tài Khoản")
+                    with st.form("form_delete_user"):
+                        del_user = st.selectbox("Chọn tài khoản cần xóa:", ["-- Chọn tài khoản --"] + df_users["Tên đăng nhập"].tolist(), key="del_selectbox")
+                        submit_del = st.form_submit_button("🚨 Xóa Tài Khoản Này", use_container_width=True)
+                        if submit_del:
+                            if del_user == "-- Chọn tài khoản --":
+                                st.warning("⚠️ Vui lòng chọn tài khoản cần xóa!")
+                            elif del_user == "admin":
+                                st.error("❌ Không thể xóa tài khoản Quản trị viên gốc (admin)!")
+                            else:
+                                df_users = df_users[df_users["Tên đăng nhập"] != del_user]
+                                save_users(df_users)  
+                                st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công (đã đồng bộ Cloud).")
+                                st.rerun()
 
 if __name__ == "__main__":
     main()
