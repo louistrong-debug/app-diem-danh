@@ -2,6 +2,7 @@ import os
 import warnings
 import locale
 import io
+import base64
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -10,8 +11,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 
 # Tắt các thông báo cảnh báo không cần thiết trên terminal
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -41,35 +40,14 @@ FILES_MAP = {
 }
 
 
-def upload_image_to_drive(image_bytes, file_name, folder_id):
-    """Hàm upload file ảnh chụp trực tiếp lên Google Drive"""
+def convert_image_to_base64(image_bytes):
+    """Hàm chuyển đổi bytes ảnh chụp trực tiếp thành chuỗi mã hóa Base64"""
     try:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        scope = [
-            "https://spreadsheets.google.com/feeds",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        service = build('drive', 'v3', credentials=creds)
-
-        file_metadata = {
-            'name': file_name,
-            'parents': [folder_id]
-        }
-        
-        # Bỏ resumable=True để tránh lỗi hạn ngạch phụ của Service Account
-        media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype='image/png')
-        
-        uploaded_file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id',
-            supportsAllDrives=True
-        ).execute()
-        return uploaded_file.get('id')
+        encoded = base64.b64encode(image_bytes).decode('utf-8')
+        return f"data:image/png;base64,{encoded}"
     except Exception as e:
-        st.error(f"❌ Lỗi tải ảnh lên Google Drive: {e}")
-        return None
+        st.error(f"❌ Lỗi mã hóa ảnh: {e}")
+        return ""
 
 
 def sync_to_google():
@@ -151,7 +129,7 @@ def load_titles():
 
 def save_titles(df):
     df.to_excel(TITLES_FILE, index=False)
-    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
+    sync_to_google()
 
 
 def load_users():
@@ -174,7 +152,7 @@ def load_users():
 
 def save_users(df):
     df.to_excel(USER_FILE, index=False)
-    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
+    sync_to_google()
 
 
 def sync_single_record_to_google(record_dict):
@@ -345,7 +323,7 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
             if row_index_to_delete in df_att.index:
                 df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
                 df_att.to_excel(ATTENDANCE_FILE, index=False)
-                sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
+                sync_to_google() 
                 st.success(f"Đã xóa thành công lượt điểm danh của: {row_data['Họ tên']}")
                 st.rerun()
             else:
@@ -364,7 +342,7 @@ def delete_all_attendance_dialog():
     if st.button("🚨 Đồng ý xóa sạch", use_container_width=True, key="btn_confirm_delete_all"):
         if os.path.exists(ATTENDANCE_FILE):
             os.remove(ATTENDANCE_FILE)
-        sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
+        sync_to_google() 
         st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
         st.rerun()
         
@@ -378,14 +356,11 @@ def main():
         page_title="TTTM SATRA Phạm Hùng - Hệ Thống Điểm Danh", layout="wide"
     )
     
-    # Kéo dữ liệu mới nhất từ Google Sheets về khi khởi động
     sync_from_google_to_local()
-    
     apply_custom_css()
 
     query_params = st.query_params
 
-    # 1. Khôi phục phiên đăng nhập từ query params nếu có duy trì đăng nhập
     if "logged_in" not in st.session_state:
         if query_params.get("logged_in") == "true":
             st.session_state["logged_in"] = True
@@ -405,7 +380,6 @@ def main():
     """, unsafe_allow_html=True)
 
     is_checkin_page = "nq" in query_params
-
     df_nhansu = load_data()
 
     # ========================== GIAO DIỆN ĐIỂM DANH QUA QR ==========================
@@ -468,7 +442,6 @@ def main():
                 st.write("")
                 st.markdown("<p style='font-size: 17px; font-weight: 700; margin-top: 10px; margin-bottom: 5px; color: #1E293B;'>📸 Chụp ảnh xác thực khuôn mặt:</p>", unsafe_allow_html=True)
                 
-                # TÍCH HỢP CAMERA TRỰC TIẾP
                 camera_photo = st.camera_input("Đưa khuôn mặt vào giữa khung hình và nhấn 'Take Photo'")
 
                 st.write("")
@@ -480,12 +453,10 @@ def main():
                     else:
                         vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
                         formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
-                        file_name_img = f"{selected_name}_{vn_time.strftime('%Y%m%d_%H%M%S')}.png"
                         
-                        with st.spinner("Đang tải ảnh lên Google Drive và ghi nhận điểm danh..."):
-                            folder_id = st.secrets.get("DRIVE_FOLDER_ID", "")
+                        with st.spinner("Đang xử lý và ghi nhận điểm danh..."):
                             image_bytes = camera_photo.getvalue()
-                            drive_file_id = upload_image_to_drive(image_bytes, file_name_img, folder_id)
+                            image_base64 = convert_image_to_base64(image_bytes)
 
                             record_data = {
                                 "Nội dung": nq_title,
@@ -494,7 +465,7 @@ def main():
                                 "Phòng ban": default_pb,
                                 "Chức vụ": default_cv,
                                 "Thời gian điểm danh": formatted_time,
-                                "Mã Ảnh Drive": drive_file_id if drive_file_id else "Chưa lưu"
+                                "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
                             }
                             
                             if os.path.exists(ATTENDANCE_FILE):
@@ -511,7 +482,7 @@ def main():
                         if sync_success:
                             st.success("🎉 Cảm ơn Đồng chí! Điểm danh và lưu ảnh xác thực thành công.")
                         else:
-                            st.success("🎉 Điểm danh thành công (Đã lưu dữ liệu và ảnh chụp).")
+                            st.success("🎉 Điểm danh thành công (Đã lưu dữ liệu).")
                         st.balloons()
 
     # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
@@ -534,7 +505,6 @@ def main():
                             st.session_state["username"] = input_user.strip()
                             st.session_state["role"] = str(matched_u.iloc[0]["Quyền hạn"])
                             
-                            # Nếu chọn duy trì đăng nhập thì lưu lên URL
                             if remember_me:
                                 st.query_params["logged_in"] = "true"
                                 st.query_params["username"] = st.session_state["username"]
@@ -559,7 +529,6 @@ def main():
                 st.query_params.clear()
                 st.rerun()
 
-        # Quản lý danh sách Tabs theo quyền
         if st.session_state["role"] == "Quản trị viên (Admin)":
             tab_labels = [
                 "🎯 1. Tạo QR", 
@@ -573,7 +542,6 @@ def main():
                 "📊 2. Điểm Danh"
             ]
 
-        # Kiểm tra index tab từ URL để F5 không bị quay về tab 1
         current_tab_str = query_params.get("tab", "0")
         try:
             current_tab_idx = int(current_tab_str)
@@ -582,7 +550,6 @@ def main():
         except Exception:
             current_tab_idx = 0
 
-        # Khởi tạo Tabs
         rendered_tabs = st.tabs(tab_labels)
 
         # ------------------ TAB 1: TẠO MÃ QR ------------------
@@ -783,22 +750,43 @@ def main():
                 df_filtered = df_att[df_att["Nội dung"] == selected_filter] if selected_filter != "Tất cả" else df_att
 
                 st.write("")
-                st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sau đó nhấn nút xóa:*")
+                st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
                 
                 event_att = st.dataframe(
                     df_filtered, 
                     width="stretch", 
-                    height=380, 
+                    height=280, 
                     selection_mode="single-row", 
                     on_select="rerun",
                     key="attendance_dataframe"
                 )
 
+                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN ---
+                selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
+                if selected_att_rows:
+                    selected_idx_in_filtered = selected_att_rows[0]
+                    if selected_idx_in_filtered < len(df_filtered):
+                        row_selected = df_filtered.iloc[selected_idx_in_filtered]
+                        img_data = row_selected.get("Mã Ảnh Drive", "")
+                        
+                        st.write("---")
+                        col_img1, col_img2 = st.columns([1, 2], gap="large")
+                        with col_img1:
+                            st.markdown(f"#### 📸 Ảnh xác thực")
+                            st.markdown(f"👤 **Họ tên:** {row_selected['Họ tên']}")
+                            st.markdown(f"🏢 **Phòng ban:** {row_selected.get('Phòng ban', '')}")
+                            st.markdown(f"⏱️ **Thời gian:** {row_selected['Thời gian điểm danh']}")
+                        with col_img2:
+                            if str(img_data).startswith("data:image/png;base64,"):
+                                st.markdown(f'<img src="{img_data}" width="220" style="border-radius: 10px; border: 2px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
+                            else:
+                                st.info("ℹ️ Không có ảnh xác thực hoặc định dạng cũ.")
+
+                st.write("---")
                 col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
                 
                 with col_btn1:
                     if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
-                        selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
                         if not selected_att_rows:
                             st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
                         else:
@@ -820,7 +808,7 @@ def main():
                                 if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
                                     df_remaining = df_att[df_att["Nội dung"] != target_event]
                                     df_remaining.to_excel(ATTENDANCE_FILE, index=False)
-                                    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
+                                    sync_to_google() 
                                     st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
                                     st.rerun()
                                 st.write("")
@@ -860,7 +848,6 @@ def main():
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
                 st.write("")
 
-                # Nút đồng bộ thủ công
                 if st.button("🔄 Đồng bộ dữ liệu thủ công ngay", use_container_width=True):
                     with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
                         if sync_to_google():
