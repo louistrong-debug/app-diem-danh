@@ -56,11 +56,15 @@ def upload_image_to_drive(image_bytes, file_name, folder_id):
             'name': file_name,
             'parents': [folder_id]
         }
-        media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype='image/png', resumable=True)
+        
+        # Bỏ resumable=True để tránh lỗi hạn ngạch phụ của Service Account
+        media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype='image/png')
+        
         uploaded_file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id'
+            fields='id',
+            supportsAllDrives=True
         ).execute()
         return uploaded_file.get('id')
     except Exception as e:
