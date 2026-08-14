@@ -468,6 +468,7 @@ def main():
                                 "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
                             }
                             
+                            # 1. Lưu vào file Excel cục bộ trước
                             if os.path.exists(ATTENDANCE_FILE):
                                 df_att = pd.read_excel(ATTENDANCE_FILE)
                                 if "Nội dung Nghị quyết" in df_att.columns:
@@ -477,12 +478,16 @@ def main():
                                 df_att = pd.DataFrame([record_data])
                             df_att.to_excel(ATTENDANCE_FILE, index=False)
                             
-                            sync_success = sync_single_record_to_google(record_data)
+                            # 2. Khi đồng bộ lên Google Sheets, ta truyền chuỗi ngắn gọn hoặc bỏ qua chuỗi base64 nặng nề để chống lỗi nghẽn
+                            record_data_for_sheet = record_data.copy()
+                            record_data_for_sheet["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)" # Thay chuỗi dài bằng chữ ngắn
+                            
+                            sync_success = sync_single_record_to_google(record_data_for_sheet)
                             
                         if sync_success:
-                            st.success("🎉 Cảm ơn Đồng chí! Điểm danh và lưu ảnh xác thực thành công.")
+                            st.success("🎉 Cảm ơn Đồng chí! Điểm danh và đồng bộ Cloud thành công.")
                         else:
-                            st.success("🎉 Điểm danh thành công (Đã lưu dữ liệu).")
+                            st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại (Kiểm tra lại quyền Google Sheets).")
                         st.balloons()
 
     # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
