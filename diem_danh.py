@@ -637,7 +637,7 @@ def main():
 
                 col_lbl2, col_date2 = st.columns([1.5, 8.5], gap="small")
                 with col_lbl2:
-                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày/tháng/năm:</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày:</p>", unsafe_allow_html=True)
                 with col_date2:
                     nq_date_input = st.date_input("Chọn ngày/tháng/năm", value=st.session_state["selected_date_input"], label_visibility="collapsed", format="DD/MM/YYYY")
 
