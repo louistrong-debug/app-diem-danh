@@ -745,7 +745,6 @@ def main():
                 
                 with col_btn1:
                     if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
-                        selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
                         if not selected_att_rows:
                             st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
                         else:
@@ -762,7 +761,7 @@ def main():
                         else:
                             @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
                             def delete_specific_event_dialog(target_event):
-                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? (Giữ nguyên tiêu đề bảng). Hành động này không thể hoàn tác!")
+                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
                                 st.write("")
                                 if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
                                     if os.path.exists(ATTENDANCE_FILE):
@@ -773,7 +772,6 @@ def main():
                                         df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                         df_remaining.to_excel(ATTENDANCE_FILE, index=False)
                                         sync_to_google() 
-                                        
                                         st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
                                         st.rerun()
                                 st.write("")
