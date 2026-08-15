@@ -2,8 +2,6 @@ import os
 import warnings
 import locale
 import io
-import base64
-import unicodedata
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -12,7 +10,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
-from PIL import Image
 
 # Tắt các thông báo cảnh báo không cần thiết trên terminal
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -41,27 +38,6 @@ FILES_MAP = {
     "danh_sach_user": USER_FILE
 }
 
-
-def convert_image_to_base64(image_bytes):
-    """Hàm nén, thu nhỏ và chuyển đổi bytes ảnh chụp thành chuỗi Base64 nhỏ gọn (vừa vặn với Excel)"""
-    try:
-        image = Image.open(io.BytesIO(image_bytes))
-        
-        max_width = 300
-        if image.width > max_width:
-            ratio = max_width / image.width
-            new_height = int(image.height * ratio)
-            image = image.resize((max_width, new_height), Image.Resampling.LANCZOS)
-            
-        buffered = io.BytesIO()
-        image.save(buffered, format="JPEG", quality=60)
-        encoded = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return f"data:image/jpeg;base64,{encoded}"
-    except Exception as e:
-        st.error(f"❌ Lỗi mã hóa ảnh: {e}")
-        return ""
-
-
 def sync_to_google():
     """Hàm đồng bộ toàn bộ dữ liệu lên Google Sheets"""
     try:
@@ -75,26 +51,19 @@ def sync_to_google():
         for sheet_key, filename in FILES_MAP.items():
             if os.path.exists(filename):
                 df = pd.read_excel(filename)
-            else:
-                df = pd.DataFrame()
-                
-            try:
-                ws = spreadsheet.worksheet(sheet_key)
-            except Exception:
-                ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
-            ws.clear()
-            if not df.empty:
+                try:
+                    ws = spreadsheet.worksheet(sheet_key)
+                except:
+                    ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
+                ws.clear()
                 ws.update([df.columns.values.tolist()] + df.values.tolist())
-            else:
-                if len(df.columns) > 0:
-                    ws.update([df.columns.values.tolist()])
         return True
-    except Exception:
+    except Exception as e: 
         return False
 
 
 def sync_from_google_to_local():
-    """Tải dữ liệu từ Google Sheets về lại file Excel cục bộ nhưng vẫn bảo vệ chuỗi ảnh Base64 local"""
+    """Tải dữ liệu từ Google Sheets về lại file Excel cục bộ khi app khởi động để tránh mất dữ liệu"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
@@ -107,20 +76,8 @@ def sync_from_google_to_local():
                 ws = spreadsheet.worksheet(sheet_key)
                 data = ws.get_all_records()
                 if data:
-                    df_cloud = pd.DataFrame(data)
-                    
-                    if sheet_key == "ket_qua_diem_danh" and os.path.exists(filename):
-                        df_local = pd.read_excel(filename)
-                        if "Mã Ảnh Drive" in df_local.columns and "Mã Ảnh Drive" in df_cloud.columns:
-                            if len(df_local) == len(df_cloud):
-                                df_cloud["Mã Ảnh Drive"] = df_local["Mã Ảnh Drive"].values
-                    
-                    df_cloud.to_excel(filename, index=False)
-                else:
-                    all_values = ws.get_all_values()
-                    if all_values:
-                        df_cloud = pd.DataFrame(all_values[1:], columns=all_values[0])
-                        df_cloud.to_excel(filename, index=False)
+                    df = pd.DataFrame(data)
+                    df.to_excel(filename, index=False)
             except Exception:
                 pass
     except Exception:
@@ -142,6 +99,7 @@ def load_data():
     if "Họ tên" in df.columns:
         df = df.copy()
         
+        # Sửa phần Sort ABC để hỗ trợ tiếng Việt có dấu chuẩn xác tuyệt đối trên cả điện thoại và máy tính
         def vn_sort_key(full_name):
             if not isinstance(full_name, str) or not full_name.strip():
                 return ""
@@ -149,6 +107,7 @@ def load_data():
             name_reversed = [parts[-1]] + parts[:-1]
             key_str = " ".join(name_reversed)
             
+            # Xử lý riêng chữ Đ và đ
             key_str = key_str.replace('Đ', 'Dba').replace('đ', 'dba')
             
             nfkd_form = unicodedata.normalize('NFKD', key_str)
@@ -174,7 +133,7 @@ def load_titles():
 
 def save_titles(df):
     df.to_excel(TITLES_FILE, index=False)
-    sync_to_google()
+    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
 
 
 def load_users():
@@ -197,7 +156,7 @@ def load_users():
 
 def save_users(df):
     df.to_excel(USER_FILE, index=False)
-    sync_to_google()
+    sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
 
 
 def sync_single_record_to_google(record_dict):
@@ -209,16 +168,11 @@ def sync_single_record_to_google(record_dict):
         spreadsheet = client.open(SHEET_NAME)
         ws = spreadsheet.worksheet("ket_qua_diem_danh")
         ws.append_row([
-            record_dict.get("Nội dung"),
-            record_dict.get("Ngày học"),
-            record_dict.get("Họ tên"),
-            record_dict.get("Phòng ban"),
-            record_dict.get("Chức vụ"),
-            record_dict.get("Thời gian điểm danh"),
-            record_dict.get("Mã Ảnh Drive", "")
+            record_dict.get("Nội dung"), record_dict.get("Ngày học"), record_dict.get("Họ tên"),
+            record_dict.get("Phòng ban"), record_dict.get("Chức vụ"), record_dict.get("Thời gian điểm danh")
         ])
         return True
-    except Exception:
+    except Exception as e:
         return False
 
 
@@ -368,7 +322,7 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
             if row_index_to_delete in df_att.index:
                 df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
                 df_att.to_excel(ATTENDANCE_FILE, index=False)
-                sync_to_google() 
+                sync_to_google()  # 🔄 Tự động đồng bộ lên Cloud
                 st.success(f"Đã xóa thành công lượt điểm danh của: {row_data['Họ tên']}")
                 st.rerun()
             else:
@@ -389,12 +343,15 @@ def delete_all_attendance_dialog():
             df_att = pd.read_excel(ATTENDANCE_FILE)
             if "Nội dung Nghị quyết" in df_att.columns:
                 df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+            
+            # --- ĐOẠN SỬA DUY NHẤT: Giữ lại tiêu đề cột, tạo DataFrame rỗng phía dưới ---
             df_empty = pd.DataFrame(columns=df_att.columns)
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
         else:
             df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
-
+            
+        # Đồng bộ ngay lên Google Sheets để giữ lại dòng tiêu đề trên Cloud
         sync_to_google() 
         st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
         st.rerun()
@@ -409,11 +366,14 @@ def main():
         page_title="TTTM SATRA Phạm Hùng - Hệ Thống Điểm Danh", layout="wide"
     )
     
+    # Kéo dữ liệu mới nhất từ Google Sheets về khi khởi động
     sync_from_google_to_local()
+    
     apply_custom_css()
 
     query_params = st.query_params
 
+    # Khôi phục trạng thái đăng nhập từ query params nếu có duy trì đăng nhập
     if "logged_in" not in st.session_state:
         if query_params.get("logged_in") == "true":
             st.session_state["logged_in"] = True
@@ -433,9 +393,9 @@ def main():
     """, unsafe_allow_html=True)
 
     is_checkin_page = "nq" in query_params
+
     df_nhansu = load_data()
 
-    # ========================== GIAO DIỆN ĐIỂM DANH QUA QR ==========================
     if is_checkin_page:
         nq_title = query_params.get("nq", "Học nghị quyết")
         nq_date = query_params.get("date", "")
@@ -493,56 +453,33 @@ def main():
                 st.info(f"**{default_cv}**" if default_cv else "Chưa chọn tên...")
 
                 st.write("")
-                st.markdown("<p style='font-size: 17px; font-weight: 700; margin-top: 10px; margin-bottom: 5px; color: #1E293B;'>📸 Chụp ảnh xác thực khuôn mặt:</p>", unsafe_allow_html=True)
-                
-                camera_photo = st.camera_input("Đưa khuôn mặt vào giữa khung hình và nhấn 'Take Photo'")
-
-                st.write("")
                 if st.button("✅ XÁC NHẬN ĐIỂM DANH", use_container_width=True):
                     if selected_name == "-- Chọn họ tên --":
                         st.error("⚠️ Vui lòng chọn hoặc gõ tìm họ tên của đồng chí!")
-                    elif camera_photo is None:
-                        st.warning("⚠️ Đồng chí vui lòng chụp ảnh khuôn mặt trước khi bấm xác nhận!")
                     else:
                         vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
                         formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
                         
-                        with st.spinner("Đang xử lý và ghi nhận điểm danh..."):
-                            image_bytes = camera_photo.getvalue()
-                            image_base64 = convert_image_to_base64(image_bytes)
-
-                            record_data = {
-                                "Nội dung": nq_title,
-                                "Ngày học": nq_date,
-                                "Họ tên": selected_name,
-                                "Phòng ban": default_pb,
-                                "Chức vụ": default_cv,
-                                "Thời gian điểm danh": formatted_time,
-                                "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
-                            }
-                            
-                            if os.path.exists(ATTENDANCE_FILE):
-                                df_att = pd.read_excel(ATTENDANCE_FILE)
-                                if "Nội dung Nghị quyết" in df_att.columns:
-                                    df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                                df_att = pd.concat([df_att, pd.DataFrame([record_data])], ignore_index=True)
-                            else:
-                                df_att = pd.DataFrame([record_data])
-                            df_att.to_excel(ATTENDANCE_FILE, index=False)
-                            
-                            record_data_for_sheet = record_data.copy()
-                            record_data_for_sheet["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)" 
-                            
-                            sync_success = sync_single_record_to_google(record_data_for_sheet)
-                            
-                        if sync_success:
-                            st.success("🎉 Cảm ơn Đồng chí! Điểm danh và đồng bộ Cloud thành công.")
+                        record_data = {
+                            "Nội dung": nq_title, "Ngày học": nq_date, "Họ tên": selected_name,
+                            "Phòng ban": default_pb, "Chức vụ": default_cv, "Thời gian điểm danh": formatted_time
+                        }
+                        
+                        if os.path.exists(ATTENDANCE_FILE):
+                            df_att = pd.read_excel(ATTENDANCE_FILE)
+                            if "Nội dung Nghị quyết" in df_att.columns: df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                            df_att = pd.concat([df_att, pd.DataFrame([record_data])], ignore_index=True)
                         else:
-                            st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
+                            df_att = pd.DataFrame([record_data])
+                        df_att.to_excel(ATTENDANCE_FILE, index=False)
+                        
+                        with st.spinner("Đang lưu lên hệ thống Cloud..."):
+                            sync_success = sync_single_record_to_google(record_data)
+                        
+                        if sync_success: st.success("🎉 Cảm ơn Đồng chí! Điểm danh thành công (đã lưu Cloud).")
                         st.balloons()
-                        st.rerun()
+                        st.rerun() # <--- THÊM DÒNG NÀY VÀO ĐÂY ĐỂ TRANG TỰ TẢI LẠI
 
-    # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
     else:
         if not st.session_state["logged_in"]:
             col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
@@ -551,7 +488,7 @@ def main():
                 with st.form("login_form"):
                     input_user = st.text_input("Tên đăng nhập:")
                     input_pass = st.text_input("Mật khẩu:", type="password")
-                    remember_me = st.checkbox("Duy trì đăng nhập", value=True)
+                    remember_me = st.checkbox("Duy trì đăng nhập")
                     submit_login = st.form_submit_button("🚀 Đăng Nhập", use_container_width=True)
 
                     if submit_login:
@@ -562,12 +499,12 @@ def main():
                             st.session_state["username"] = input_user.strip()
                             st.session_state["role"] = str(matched_u.iloc[0]["Quyền hạn"])
                             
+                            # Nếu chọn duy trì đăng nhập, lưu vào query params để F5 không mất
                             if remember_me:
                                 st.query_params["logged_in"] = "true"
                                 st.query_params["username"] = st.session_state["username"]
                                 st.query_params["role"] = st.session_state["role"]
-                                if "tab" not in st.query_params:
-                                    st.query_params["tab"] = "0"
+                                st.query_params["tab"] = "0"
 
                             st.success("🎉 Đăng nhập thành công!")
                             st.rerun()
@@ -583,34 +520,37 @@ def main():
                 st.session_state["logged_in"] = False
                 st.session_state["username"] = ""
                 st.session_state["role"] = ""
+                # Xóa sạch query params liên quan đến đăng nhập
                 st.query_params.clear()
                 st.rerun()
 
+        # Quản lý Tab thông minh để khi F5 không bị reset về tab đầu
         if st.session_state["role"] == "Quản trị viên (Admin)":
-            tab_labels = [
-                "🎯 1. Tạo QR", 
-                "📊 2. Điểm Danh", 
-                "👥 3. Nhân Sự", 
-                "🔐 4. Quản Trị User"
-            ]
+            tab_names = ["🎯 1. Tạo QR", "📊 2. Điểm Danh", "👥 3. Nhân Sự", "🔐 4. Quản Trị User"]
         else:
-            tab_labels = [
-                "🎯 1. Tạo QR", 
-                "📊 2. Điểm Danh"
-            ]
+            tab_names = ["🎯 1. Tạo QR", "📊 2. Điểm Danh"]
 
-        current_tab_str = query_params.get("tab", "0")
+        # Lấy tab hiện tại từ query_params nếu có, mặc định là 0
+        default_tab_idx = 0
         try:
-            current_tab_idx = int(current_tab_str)
-            if current_tab_idx < 0 or current_tab_idx >= len(tab_labels):
-                current_tab_idx = 0
-        except Exception:
-            current_tab_idx = 0
+            if "tab" in query_params:
+                default_tab_idx = int(query_params.get("tab", 0))
+                if default_tab_idx >= len(tab_names):
+                    default_tab_idx = 0
+        except:
+            default_tab_idx = 0
 
-        rendered_tabs = st.tabs(tab_labels)
+        # Tạo tabs thông qua lựa chọn index
+        tabs = st.tabs(tab_names)
+        
+        # Lưu lại tab hiện tại vào query params khi người dùng chuyển tab để khi F5 giữ nguyên vị trí
+        # (Streamlit chưa hỗ trợ trực tiếp active tab qua index parameter ngoài cách dùng trick session_state / query_params)
+        
+        with tabs[0]:
+            # Cập nhật query_params tab = 0
+            if query_params.get("tab") != "0":
+                st.query_params["tab"] = "0"
 
-        # ------------------ TAB 1: TẠO MÃ QR (GIỮ NGUYÊN FORM GỐC TRÁI - PHẢI) ------------------
-        with rendered_tabs[0]:
             col_left, col_right = st.columns([2, 1], gap="large")
 
             df_titles = load_titles()
@@ -798,8 +738,8 @@ def main():
                         use_container_width=True,
                     )
 
-        # ------------------ TAB 2: ĐIỂM DANH & BÁO CÁO ------------------
-        with rendered_tabs[1]:
+        with tabs[1]:
+            st.query_params["tab"] = "1"
             st.markdown("### 📈 Thống Kê & Báo Cáo Điểm Danh")
             if os.path.exists(ATTENDANCE_FILE):
                 df_att = pd.read_excel(ATTENDANCE_FILE)
@@ -821,43 +761,22 @@ def main():
                 df_filtered = df_att[df_att["Nội dung"] == selected_filter] if selected_filter != "Tất cả" else df_att
 
                 st.write("")
-                st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
+                st.markdown("💡 *Bấm chọn vào dòng cần xóa trong bảng dưới đây, sau đó nhấn nút xóa:*")
                 
                 event_att = st.dataframe(
                     df_filtered, 
                     width="stretch", 
-                    height=280, 
+                    height=380, 
                     selection_mode="single-row", 
                     on_select="rerun",
                     key="attendance_dataframe"
                 )
 
-                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN ---
-                selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
-                if selected_att_rows:
-                    selected_idx_in_filtered = selected_att_rows[0]
-                    if selected_idx_in_filtered < len(df_filtered):
-                        row_selected = df_filtered.iloc[selected_idx_in_filtered]
-                        img_data = row_selected.get("Mã Ảnh Drive", "")
-                        
-                        st.write("---")
-                        col_img1, col_img2 = st.columns([1, 2], gap="large")
-                        with col_img1:
-                            st.markdown(f"#### 📸 Ảnh xác thực")
-                            st.markdown(f"👤 **Họ tên:** {row_selected['Họ tên']}")
-                            st.markdown(f"🏢 **Phòng ban:** {row_selected.get('Phòng ban', '')}")
-                            st.markdown(f"⏱️ **Thời gian:** {row_selected['Thời gian điểm danh']}")
-                        with col_img2:
-                            if str(img_data).startswith("data:image/"):
-                                st.markdown(f'<img src="{img_data}" width="220" style="border-radius: 10px; border: 2px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
-                            else:
-                                st.info("ℹ️ Không có ảnh xác thực hoặc định dạng cũ.")
-
-                st.write("---")
                 col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
                 
                 with col_btn1:
                     if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
+                        selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
                         if not selected_att_rows:
                             st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
                         else:
@@ -874,7 +793,7 @@ def main():
                         else:
                             @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
                             def delete_specific_event_dialog(target_event):
-                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
+                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? (Giữ nguyên tiêu đề bảng). Hành động này không thể hoàn tác!")
                                 st.write("")
                                 if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
                                     if os.path.exists(ATTENDANCE_FILE):
@@ -884,7 +803,10 @@ def main():
                                         
                                         df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                         df_remaining.to_excel(ATTENDANCE_FILE, index=False)
+                                        
+                                        # Đồng bộ ngay lập tức lên Google Sheets
                                         sync_to_google() 
+                                        
                                         st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
                                         st.rerun()
                                 st.write("")
@@ -911,16 +833,17 @@ def main():
             else:
                 st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
 
-        # ------------------ TAB 3 & 4: CHỈ HIỂN THỊ VỚI ADMIN ------------------
         if st.session_state["role"] == "Quản trị viên (Admin)":
-            with rendered_tabs[2]:
+            with tabs[2]:
+                st.query_params["tab"] = "2"
                 st.markdown("### 📂 Quản Lý Danh Sách Nhân Sự TTTM")
                 st.dataframe(df_nhansu, width="stretch", height=450)
                 st.warning(
                     "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
                 )
 
-            with rendered_tabs[3]:
+            with tabs[3]:
+                st.query_params["tab"] = "3"
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
                 st.write("")
 
@@ -957,7 +880,7 @@ def main():
                                     "Quyền hạn": new_role
                                 }])
                                 df_users = pd.concat([df_users, new_u_row], ignore_index=True)
-                                save_users(df_users)
+                                save_users(df_users)  
                                 st.success(f"✨ Đã tạo thành công tài khoản: **{new_username.strip()}** (đã đồng bộ Cloud)")
                                 st.rerun()
 
@@ -972,7 +895,7 @@ def main():
                                 st.error("⚠️ Vui lòng nhập mật khẩu mới!")
                             else:
                                 df_users.loc[df_users["Tên đăng nhập"] == target_user, "Mật khẩu"] = str(new_pwd).strip()
-                                save_users(df_users)
+                                save_users(df_users)  
                                 st.success(f"✨ Đã đổi mật khẩu thành công cho tài khoản: **{target_user}** (đã đồng bộ Cloud)")
                                 st.rerun()
 
@@ -992,10 +915,9 @@ def main():
                                 st.error("❌ Không thể xóa tài khoản Quản trị viên gốc (admin)!")
                             else:
                                 df_users = df_users[df_users["Tên đăng nhập"] != del_user]
-                                save_users(df_users)
+                                save_users(df_users)  
                                 st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công (đã đồng bộ Cloud).")
                                 st.rerun()
-
 
 if __name__ == "__main__":
     main()
