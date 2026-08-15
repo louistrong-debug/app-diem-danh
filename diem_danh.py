@@ -793,7 +793,8 @@ def main():
                             st.markdown(f"🏢 **Phòng ban:** {row_selected.get('Phòng ban', '')}")
                             st.markdown(f"⏱️ **Thời gian:** {row_selected['Thời gian điểm danh']}")
                         with col_img2:
-                            if str(img_data).startswith("data:image/png;base64,"):
+                            # Hỗ trợ cả định dạng png hoặc jpeg/jpg do trình duyệt/streamlit camera trả về
+                            if str(img_data).startswith("data:image/"):
                                 st.markdown(f'<img src="{img_data}" width="220" style="border-radius: 10px; border: 2px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
                             else:
                                 st.info("ℹ️ Không có ảnh xác thực hoặc định dạng cũ.")
