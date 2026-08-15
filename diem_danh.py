@@ -86,7 +86,6 @@ def sync_to_google():
             if not df.empty:
                 ws.update([df.columns.values.tolist()] + df.values.tolist())
             else:
-                # Nếu DataFrame trống nhưng có cột, vẫn đẩy dòng tiêu đề lên để giữ cấu trúc sheet
                 if len(df.columns) > 0:
                     ws.update([df.columns.values.tolist()])
         return True
@@ -118,7 +117,6 @@ def sync_from_google_to_local():
                     
                     df_cloud.to_excel(filename, index=False)
                 else:
-                    # Nếu trên cloud chỉ có tiêu đề hoặc rỗng hoàn toàn
                     all_values = ws.get_all_values()
                     if all_values:
                         df_cloud = pd.DataFrame(all_values[1:], columns=all_values[0])
@@ -809,7 +807,7 @@ def main():
                     key="attendance_dataframe"
                 )
 
-                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN ---
+                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN (ĐÃ KHÔI PHỤC) ---
                 selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
                 if selected_att_rows:
                     selected_idx_in_filtered = selected_att_rows[0]
@@ -859,7 +857,6 @@ def main():
                                         if "Nội dung Nghị quyết" in df_att_all.columns:
                                             df_att_all = df_att_all.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                                         
-                                        # Giữ lại các dòng không thuộc sự kiện cần xóa, giữ nguyên cấu trúc header
                                         df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                         df_remaining.to_excel(ATTENDANCE_FILE, index=False)
                                         
