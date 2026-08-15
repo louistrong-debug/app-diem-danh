@@ -52,14 +52,21 @@ def sync_to_google():
         for sheet_key, filename in FILES_MAP.items():
             if os.path.exists(filename):
                 df = pd.read_excel(filename)
-                try:
-                    ws = spreadsheet.worksheet(sheet_key)
-                except:
-                    ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
-                ws.clear()
+            else:
+                df = pd.DataFrame()
+                
+            try:
+                ws = spreadsheet.worksheet(sheet_key)
+            except Exception:
+                ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
+            ws.clear()
+            if not df.empty:
                 ws.update([df.columns.values.tolist()] + df.values.tolist())
+            else:
+                if len(df.columns) > 0:
+                    ws.update([df.columns.values.tolist()])
         return True
-    except Exception as e: 
+    except Exception:
         return False
 
 
