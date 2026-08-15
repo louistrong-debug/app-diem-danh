@@ -75,7 +75,7 @@ def sync_to_google():
             if os.path.exists(filename):
                 df = pd.read_excel(filename)
             else:
-                df = pd.DataFrame() # Nếu file không tồn tại (đã bị xóa trắng), đẩy DataFrame rỗng lên để clear sheet trên Cloud
+                df = pd.DataFrame()
             
             try:
                 ws = spreadsheet.worksheet(sheet_key)
@@ -85,6 +85,10 @@ def sync_to_google():
             ws.clear()
             if not df.empty:
                 ws.update([df.columns.values.tolist()] + df.values.tolist())
+            else:
+                # Nếu DataFrame trống nhưng có cột, vẫn đẩy dòng tiêu đề lên để giữ cấu trúc sheet
+                if len(df.columns) > 0:
+                    ws.update([df.columns.values.tolist()])
         return True
     except Exception:
         return False
@@ -114,9 +118,11 @@ def sync_from_google_to_local():
                     
                     df_cloud.to_excel(filename, index=False)
                 else:
-                    # Nếu trên cloud trống rỗng, ta cũng clear file local tương ứng
-                    df_empty = pd.DataFrame()
-                    df_empty.to_excel(filename, index=False)
+                    # Nếu trên cloud chỉ có tiêu đề hoặc rỗng hoàn toàn
+                    all_values = ws.get_all_values()
+                    if all_values:
+                        df_cloud = pd.DataFrame(all_values[1:], columns=all_values[0])
+                        df_cloud.to_excel(filename, index=False)
             except Exception:
                 pass
     except Exception:
@@ -363,16 +369,24 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
 
 @st.dialog("⚠️ Cảnh Báo: Xóa Tất Cả Điểm Danh")
 def delete_all_attendance_dialog():
-    st.markdown("Bạn có thực sự muốn **XÓA TẤT CẢ** dữ liệu điểm danh của toàn bộ các sự kiện không? Hành động này không thể hoàn tác!")
+    st.markdown("Bạn có thực sự muốn **XÓA TẤT CẢ** dữ liệu điểm danh của toàn bộ các sự kiện không? (Giữ nguyên tiêu đề bảng). Hành động này không thể hoàn tác!")
     st.write("")
     
     if st.button("🚨 Đồng ý xóa sạch", use_container_width=True, key="btn_confirm_delete_all"):
-        # Tạo DataFrame rỗng và lưu đè lên file Excel để làm sạch dữ liệu hoàn toàn
-        df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
-        df_empty.to_excel(ATTENDANCE_FILE, index=False)
-        
+        if os.path.exists(ATTENDANCE_FILE):
+            df_att = pd.read_excel(ATTENDANCE_FILE)
+            if "Nội dung Nghị quyết" in df_att.columns:
+                df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+            
+            # Giữ nguyên cấu trúc tiêu đề (header), xóa sạch các dòng dữ liệu bên dưới
+            df_empty = pd.DataFrame(columns=df_att.columns)
+            df_empty.to_excel(ATTENDANCE_FILE, index=False)
+        else:
+            df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
+            df_empty.to_excel(ATTENDANCE_FILE, index=False)
+            
         sync_to_google() 
-        st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
+        st.success("Đã xóa toàn bộ nội dung điểm danh thành công (đã giữ lại tiêu đề và đồng bộ Cloud).")
         st.rerun()
         
     st.write("")
@@ -837,14 +851,21 @@ def main():
                         else:
                             @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
                             def delete_specific_event_dialog(target_event):
-                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
+                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? (Giữ nguyên tiêu đề bảng). Hành động này không thể hoàn tác!")
                                 st.write("")
                                 if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
-                                    df_remaining = df_att[df_att["Nội dung"] != target_event]
-                                    df_remaining.to_excel(ATTENDANCE_FILE, index=False)
-                                    sync_to_google() # <--- ĐÃ BỔ SUNG ĐỒNG BỘ GOOGLE SHEETS
-                                    st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
-                                    st.rerun()
+                                    if os.path.exists(ATTENDANCE_FILE):
+                                        df_att_all = pd.read_excel(ATTENDANCE_FILE)
+                                        if "Nội dung Nghị quyết" in df_att_all.columns:
+                                            df_att_all = df_att_all.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                                        
+                                        # Giữ lại các dòng không thuộc sự kiện cần xóa, giữ nguyên cấu trúc header
+                                        df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
+                                        df_remaining.to_excel(ATTENDANCE_FILE, index=False)
+                                        
+                                        sync_to_google() 
+                                        st.success(f"Đã xóa toàn bộ nội dung điểm danh của sự kiện '{target_event}' thành công (giữ tiêu đề và đồng bộ Cloud).")
+                                        st.rerun()
                                 st.write("")
                                 if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_specific"):
                                     st.rerun()
