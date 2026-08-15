@@ -340,8 +340,8 @@ def apply_custom_css():
 @st.dialog("🎉 Điểm Danh Thành Công")
 def success_attendance_dialog(selected_name, nq_title, formatted_time):
     st.markdown(f"""
-        <div style="text-align: center; padding: 10px;">
-            <h3 style="color: #16A34A !important; margin-bottom: 10px;">Xác nhận thành công!</h3>
+        <div style="text-align: center; padding: 8px;">
+            <h3 style="color: #F97316 !important; margin-bottom: 9px;">Xác nhận thành công!</h3>
             <p style="font-size: 17px; color: #1E293B; margin-bottom: 5px;">Cảm ơn đồng chí: <b>{selected_name}</b></p>
             <p style="font-size: 16px; color: #475569; margin-bottom: 5px;">Sự kiện: <b>{nq_title}</b></p>
             <p style="font-size: 15px; color: #64748B;">Thời gian: <b>{formatted_time}</b></p>
