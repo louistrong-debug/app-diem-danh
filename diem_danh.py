@@ -700,7 +700,7 @@ def main():
                 df_att = pd.read_excel(ATTENDANCE_FILE)
 
                 if "Nội dung Nghị quyết" in df_att.columns:
-                    df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                    df_att = df_att.rename(columns={"Nội dung": "Nội dung"})
                     df_att.to_excel(ATTENDANCE_FILE, index=False)
 
                 if "Thời gian điểm danh" in df_att.columns:
