@@ -856,7 +856,7 @@ def main():
                                         df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                         df_remaining.to_excel(ATTENDANCE_FILE, index=False)
                                         
-                                        # Gọi đồng bộ ngay lập tức lên Google Sheets
+                                        # Đồng bộ ngay lập tức lên Google Sheets
                                         sync_to_google() 
                                         
                                         st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
