@@ -3,6 +3,7 @@ import warnings
 import locale
 import io
 import base64
+import unicodedata
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import pandas as pd
@@ -16,7 +17,7 @@ from PIL import Image
 # Tắt các thông báo cảnh báo không cần thiết trên terminal
 warnings.filterwarnings("ignore", category=UserWarning)
 
-# Cấu hình locale tiếng Việt để sort chữ cái chuẩn (D và Đ)
+# Cấu hình locale tiếng Việt (phòng hờ cho máy hỗ trợ)
 try:
     locale.setlocale(locale.LC_COLLATE, "vi_VN.UTF-8")
 except Exception:
@@ -140,7 +141,23 @@ def load_data():
     
     if "Họ tên" in df.columns:
         df = df.copy()
-        df["_sort_key"] = df["Họ tên"].astype(str).apply(lambda x: locale.strxfrm(x.split()[-1] if x.strip() else ""))
+        
+        # Thuật toán chuẩn hóa tiếng Việt giúp sort ABC chuẩn xác trên mọi thiết bị (PC, Điện thoại, iOS, Android)
+        def vn_sort_key(full_name):
+            if not isinstance(full_name, str) or not full_name.strip():
+                return ""
+            parts = full_name.strip().split()
+            name_reversed = [parts[-1]] + parts[:-1]
+            key_str = " ".join(name_reversed)
+            
+            # Xử lý riêng chữ Đ và đ để sắp xếp đúng vị trí
+            key_str = key_str.replace('Đ', 'Dba').replace('đ', 'dba')
+            
+            nfkd_form = unicodedata.normalize('NFKD', key_str)
+            ascii_str = "".join([c for c in nfkd_form if not unicodedata.combining(c)]).lower()
+            return ascii_str
+
+        df["_sort_key"] = df["Họ tên"].apply(vn_sort_key)
         df = df.sort_values(by="_sort_key").drop(columns=["_sort_key"]).reset_index(drop=True)
         df["STT"] = range(1, len(df) + 1)
         
@@ -856,7 +873,7 @@ def main():
                                         df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                         df_remaining.to_excel(ATTENDANCE_FILE, index=False)
                                         
-                                        # Đồng bộ ngay lập tức lên Google Sheets
+                                        # Gọi đồng bộ ngay lập tức lên Google Sheets
                                         sync_to_google() 
                                         
                                         st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
