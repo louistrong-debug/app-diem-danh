@@ -45,17 +45,14 @@ FILES_MAP = {
 def convert_image_to_base64(image_bytes):
     """Hàm nén, thu nhỏ và chuyển đổi bytes ảnh chụp thành chuỗi Base64 nhỏ gọn (vừa vặn với Excel)"""
     try:
-        # Mở ảnh từ bytes
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Resize chiều rộng tối đa còn 300px để giảm dung lượng tải
         max_width = 300
         if image.width > max_width:
             ratio = max_width / image.width
             new_height = int(image.height * ratio)
             image = image.resize((max_width, new_height), Image.Resampling.LANCZOS)
             
-        # Lưu vào bộ đệm dưới định dạng JPEG với chất lượng 60% (rất nhẹ, an toàn cho Excel)
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG", quality=60)
         encoded = base64.b64encode(buffered.getvalue()).decode('utf-8')
@@ -112,11 +109,9 @@ def sync_from_google_to_local():
                 if data:
                     df_cloud = pd.DataFrame(data)
                     
-                    # Nếu là file kết quả điểm danh, ta giữ lại chuỗi Base64 gốc ở máy nếu máy đang có
                     if sheet_key == "ket_qua_diem_danh" and os.path.exists(filename):
                         df_local = pd.read_excel(filename)
                         if "Mã Ảnh Drive" in df_local.columns and "Mã Ảnh Drive" in df_cloud.columns:
-                            # Ghép cột Mã Ảnh Drive từ bản local sang bản cloud tải về để không bị mất ảnh
                             if len(df_local) == len(df_cloud):
                                 df_cloud["Mã Ảnh Drive"] = df_local["Mã Ảnh Drive"].values
                     
@@ -147,7 +142,6 @@ def load_data():
     if "Họ tên" in df.columns:
         df = df.copy()
         
-        # Sửa phần Sort ABC để hỗ trợ tiếng Việt có dấu chuẩn xác tuyệt đối trên cả điện thoại và máy tính
         def vn_sort_key(full_name):
             if not isinstance(full_name, str) or not full_name.strip():
                 return ""
@@ -155,7 +149,6 @@ def load_data():
             name_reversed = [parts[-1]] + parts[:-1]
             key_str = " ".join(name_reversed)
             
-            # Xử lý riêng chữ Đ và đ
             key_str = key_str.replace('Đ', 'Dba').replace('đ', 'dba')
             
             nfkd_form = unicodedata.normalize('NFKD', key_str)
@@ -518,7 +511,6 @@ def main():
                             image_bytes = camera_photo.getvalue()
                             image_base64 = convert_image_to_base64(image_bytes)
 
-                            # Dữ liệu gốc chứa chuỗi Base64 đầy đủ
                             record_data = {
                                 "Nội dung": nq_title,
                                 "Ngày học": nq_date,
@@ -529,7 +521,6 @@ def main():
                                 "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
                             }
                             
-                            # 1. LƯU VÀO FILE EXCEL CỤC BỘ (Giữ nguyên Base64 để hiển thị ảnh trên Web)
                             if os.path.exists(ATTENDANCE_FILE):
                                 df_att = pd.read_excel(ATTENDANCE_FILE)
                                 if "Nội dung Nghị quyết" in df_att.columns:
@@ -539,7 +530,6 @@ def main():
                                 df_att = pd.DataFrame([record_data])
                             df_att.to_excel(ATTENDANCE_FILE, index=False)
                             
-                            # 2. ĐỒNG BỘ LÊN GOOGLE SHEETS
                             record_data_for_sheet = record_data.copy()
                             record_data_for_sheet["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)" 
                             
@@ -653,9 +643,10 @@ def main():
 
                 col_lbl2, col_date2 = st.columns([1.5, 8.5], gap="small")
                 with col_lbl2:
-                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày học:</p>", unsafe_allow_html=True)
+                    # ĐÃ SỬA LABEL THÀNH "Ngày/tháng/năm"
+                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày/tháng/năm:</p>", unsafe_allow_html=True)
                 with col_date2:
-                    nq_date_input = st.date_input("Chọn ngày học", value=default_date_val, label_visibility="collapsed", format="DD/MM/YYYY")
+                    nq_date_input = st.date_input("Chọn ngày/tháng/năm", value=default_date_val, label_visibility="collapsed", format="DD/MM/YYYY")
 
                 formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
@@ -682,6 +673,9 @@ def main():
                     title_input = nq_title_input.strip()
                     if not title_input:
                         st.warning("⚠️ Vui lòng nhập tiêu đề!")
+                    elif nq_date_input < datetime.now().date():
+                        # Kiểm tra nếu ngày học nhỏ hơn ngày hiện tại thì báo lỗi tiêu đề đã kết thúc
+                        st.error(f"🚨 Tiêu đề '{title_input}' có ngày học ({formatted_date_str}) đã nhỏ hơn ngày hiện tại. Không thể tạo mã QR cho sự kiện đã kết thúc!")
                     else:
                         expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
                         expire_timestamp = expire_time.timestamp()
@@ -828,7 +822,7 @@ def main():
                     key="attendance_dataframe"
                 )
 
-                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN (GIỮ NGUYÊN BẢN GỐC) ---
+                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN ---
                 selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
                 if selected_att_rows:
                     selected_idx_in_filtered = selected_att_rows[0]
@@ -844,7 +838,6 @@ def main():
                             st.markdown(f"🏢 **Phòng ban:** {row_selected.get('Phòng ban', '')}")
                             st.markdown(f"⏱️ **Thời gian:** {row_selected['Thời gian điểm danh']}")
                         with col_img2:
-                            # Hỗ trợ cả định dạng png hoặc jpeg/jpg do trình duyệt/streamlit camera trả về
                             if str(img_data).startswith("data:image/"):
                                 st.markdown(f'<img src="{img_data}" width="220" style="border-radius: 10px; border: 2px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
                             else:
