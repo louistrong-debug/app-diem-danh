@@ -620,8 +620,6 @@ def main():
                 st.write("")
 
                 selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
-                
-                # Lấy ngày hiện tại chính xác theo múi giờ VN (Asia/Ho_Chi_Minh)
                 current_vn_date = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
                 default_title_val = ""
                 default_date_val = current_vn_date
@@ -676,7 +674,6 @@ def main():
                     if not title_input:
                         st.warning("⚠️ Vui lòng nhập tiêu đề!")
                     elif nq_date_input < current_vn_date:
-                        # Kiểm tra nếu ngày học nhỏ hơn ngày hiện tại VN thì báo lỗi sự kiện đã kết thúc
                         st.error(f"🚨 Tiêu đề '{title_input}' có ngày học ({formatted_date_str}) đã nhỏ hơn ngày hiện tại ({current_vn_date.strftime('%d/%m/%Y')}). Sự kiện này đã kết thúc, không thể tạo mã QR!")
                     else:
                         expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
