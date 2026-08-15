@@ -11,6 +11,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
+from PIL import Image
 
 # Tắt các thông báo cảnh báo không cần thiết trên terminal
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -41,10 +42,23 @@ FILES_MAP = {
 
 
 def convert_image_to_base64(image_bytes):
-    """Hàm chuyển đổi bytes ảnh chụp trực tiếp thành chuỗi mã hóa Base64"""
+    """Hàm nén, thu nhỏ và chuyển đổi bytes ảnh chụp thành chuỗi Base64 nhỏ gọn (vừa vặn với Excel)"""
     try:
-        encoded = base64.b64encode(image_bytes).decode('utf-8')
-        return f"data:image/png;base64,{encoded}"
+        # Mở ảnh từ bytes
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Resize chiều rộng tối đa còn 300px để giảm dung lượng tải
+        max_width = 300
+        if image.width > max_width:
+            ratio = max_width / image.width
+            new_height = int(image.height * ratio)
+            image = image.resize((max_width, new_height), Image.Resampling.LANCZOS)
+            
+        # Lưu vào bộ đệm dưới định dạng JPEG với chất lượng 60% (rất nhẹ, an toàn cho Excel)
+        buffered = io.BytesIO()
+        image.save(buffered, format="JPEG", quality=60)
+        encoded = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        return f"data:image/jpeg;base64,{encoded}"
     except Exception as e:
         st.error(f"❌ Lỗi mã hóa ảnh: {e}")
         return ""
