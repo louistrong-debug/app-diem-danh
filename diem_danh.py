@@ -40,7 +40,7 @@ FILES_MAP = {
 }
 
 def sync_to_google():
-    """Hàm đồng bộ toàn bộ dữ liệu lên Google Sheets"""
+    """Hàm đồng bộ an toàn: Không bao giờ làm mất dữ liệu trên Cloud nếu file cục bộ bị trống"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
@@ -52,21 +52,25 @@ def sync_to_google():
         for sheet_key, filename in FILES_MAP.items():
             if os.path.exists(filename):
                 df = pd.read_excel(filename)
-            else:
-                df = pd.DataFrame()
                 
-            try:
-                ws = spreadsheet.worksheet(sheet_key)
-            except Exception:
-                ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
-            ws.clear()
-            if not df.empty:
-                ws.update([df.columns.values.tolist()] + df.values.tolist())
-            else:
-                if len(df.columns) > 0:
-                    ws.update([df.columns.values.tolist()])
+                # 🛡️ BẢO VỆ DỮ LIỆU: Nếu bảng điểm danh cục bộ đang rỗng, 
+                # bỏ qua không đồng bộ file này để tránh làm mất sạch dữ liệu trên Google Sheets!
+                if sheet_key == "ket_qua_diem_danh" and df.empty:
+                    continue
+                
+                try:
+                    ws = spreadsheet.worksheet(sheet_key)
+                except:
+                    ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
+                
+                ws.clear()
+                if not df.empty:
+                    ws.update([df.columns.values.tolist()] + df.values.tolist())
+                else:
+                    if len(df.columns) > 0:
+                        ws.update([df.columns.values.tolist()])
         return True
-    except Exception:
+    except Exception as e: 
         return False
 
 
