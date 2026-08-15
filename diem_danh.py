@@ -44,14 +44,17 @@ FILES_MAP = {
 def convert_image_to_base64(image_bytes):
     """Hàm nén, thu nhỏ và chuyển đổi bytes ảnh chụp thành chuỗi Base64 nhỏ gọn (vừa vặn với Excel)"""
     try:
+        # Mở ảnh từ bytes
         image = Image.open(io.BytesIO(image_bytes))
         
+        # Resize chiều rộng tối đa còn 300px để giảm dung lượng tải
         max_width = 300
         if image.width > max_width:
             ratio = max_width / image.width
             new_height = int(image.height * ratio)
             image = image.resize((max_width, new_height), Image.Resampling.LANCZOS)
             
+        # Lưu vào bộ đệm dưới định dạng JPEG với chất lượng 60% (rất nhẹ, an toàn cho Excel)
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG", quality=60)
         encoded = base64.b64encode(buffered.getvalue()).decode('utf-8')
@@ -76,12 +79,11 @@ def sync_to_google():
                 df = pd.read_excel(filename)
             else:
                 df = pd.DataFrame()
-            
+                
             try:
                 ws = spreadsheet.worksheet(sheet_key)
             except Exception:
                 ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
-            
             ws.clear()
             if not df.empty:
                 ws.update([df.columns.values.tolist()] + df.values.tolist())
@@ -109,9 +111,11 @@ def sync_from_google_to_local():
                 if data:
                     df_cloud = pd.DataFrame(data)
                     
+                    # Nếu là file kết quả điểm danh, ta giữ lại chuỗi Base64 gốc ở máy nếu máy đang có
                     if sheet_key == "ket_qua_diem_danh" and os.path.exists(filename):
                         df_local = pd.read_excel(filename)
                         if "Mã Ảnh Drive" in df_local.columns and "Mã Ảnh Drive" in df_cloud.columns:
+                            # Ghép cột Mã Ảnh Drive từ bản local sang bản cloud tải về để không bị mất ảnh
                             if len(df_local) == len(df_cloud):
                                 df_cloud["Mã Ảnh Drive"] = df_local["Mã Ảnh Drive"].values
                     
@@ -367,7 +371,7 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
 
 @st.dialog("⚠️ Cảnh Báo: Xóa Tất Cả Điểm Danh")
 def delete_all_attendance_dialog():
-    st.markdown("Bạn có thực sự muốn **XÓA TẤT CẢ** dữ liệu điểm danh của toàn bộ các sự kiện không? (Giữ nguyên tiêu đề bảng). Hành động này không thể hoàn tác!")
+    st.markdown("Bạn có thực sự muốn **XÓA TẤT CẢ** dữ liệu điểm danh của toàn bộ các sự kiện không? Hành động này không thể hoàn tác!")
     st.write("")
     
     if st.button("🚨 Đồng ý xóa sạch", use_container_width=True, key="btn_confirm_delete_all"):
@@ -375,16 +379,15 @@ def delete_all_attendance_dialog():
             df_att = pd.read_excel(ATTENDANCE_FILE)
             if "Nội dung Nghị quyết" in df_att.columns:
                 df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-            
-            # Giữ nguyên cấu trúc tiêu đề (header), xóa sạch các dòng dữ liệu bên dưới
+            # Giữ nguyên cấu trúc tiêu đề, chỉ xóa các dòng bên dưới
             df_empty = pd.DataFrame(columns=df_att.columns)
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
         else:
             df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
-            
+
         sync_to_google() 
-        st.success("Đã xóa toàn bộ nội dung điểm danh thành công (đã giữ lại tiêu đề và đồng bộ Cloud).")
+        st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
         st.rerun()
         
     st.write("")
@@ -499,6 +502,7 @@ def main():
                             image_bytes = camera_photo.getvalue()
                             image_base64 = convert_image_to_base64(image_bytes)
 
+                            # Dữ liệu gốc chứa chuỗi Base64 đầy đủ
                             record_data = {
                                 "Nội dung": nq_title,
                                 "Ngày học": nq_date,
@@ -509,6 +513,7 @@ def main():
                                 "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
                             }
                             
+                            # 1. LƯU VÀO FILE EXCEL CỤC BỘ (Giữ nguyên Base64 để hiển thị ảnh trên Web)
                             if os.path.exists(ATTENDANCE_FILE):
                                 df_att = pd.read_excel(ATTENDANCE_FILE)
                                 if "Nội dung Nghị quyết" in df_att.columns:
@@ -518,6 +523,8 @@ def main():
                                 df_att = pd.DataFrame([record_data])
                             df_att.to_excel(ATTENDANCE_FILE, index=False)
                             
+                            # 2. ĐỒNG BỘ LÊN GOOGLE SHEETS
+                            # Ta gửi một bản sao, rút gọn nội dung ảnh để tránh lỗi quá tải ô trên Google Sheets
                             record_data_for_sheet = record_data.copy()
                             record_data_for_sheet["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)" 
                             
@@ -527,7 +534,6 @@ def main():
                             st.success("🎉 Cảm ơn Đồng chí! Điểm danh và đồng bộ Cloud thành công.")
                         else:
                             st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
-                        
                         st.balloons()
                         st.rerun()
 
@@ -788,7 +794,7 @@ def main():
                         df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
                     ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
 
-                list_nq = df_att["Nội dung"].unique().tolist() if not df_att.empty and "Nội dung" in df_att.columns else []
+                list_nq = df_att["Nội dung"].unique().tolist()
                 selected_filter = st.selectbox(
                     "🔍 Lọc theo nội dung:", ["Tất cả"] + list_nq
                 )
@@ -807,7 +813,7 @@ def main():
                     key="attendance_dataframe"
                 )
 
-                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN (ĐÃ KHÔI PHỤC) ---
+                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN ---
                 selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
                 if selected_att_rows:
                     selected_idx_in_filtered = selected_att_rows[0]
@@ -823,6 +829,7 @@ def main():
                             st.markdown(f"🏢 **Phòng ban:** {row_selected.get('Phòng ban', '')}")
                             st.markdown(f"⏱️ **Thời gian:** {row_selected['Thời gian điểm danh']}")
                         with col_img2:
+                            # Hỗ trợ cả định dạng png hoặc jpeg/jpg do trình duyệt/streamlit camera trả về
                             if str(img_data).startswith("data:image/"):
                                 st.markdown(f'<img src="{img_data}" width="220" style="border-radius: 10px; border: 2px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
                             else:
@@ -849,7 +856,7 @@ def main():
                         else:
                             @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
                             def delete_specific_event_dialog(target_event):
-                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? (Giữ nguyên tiêu đề bảng). Hành động này không thể hoàn tác!")
+                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
                                 st.write("")
                                 if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
                                     if os.path.exists(ATTENDANCE_FILE):
@@ -859,9 +866,8 @@ def main():
                                         
                                         df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                         df_remaining.to_excel(ATTENDANCE_FILE, index=False)
-                                        
                                         sync_to_google() 
-                                        st.success(f"Đã xóa toàn bộ nội dung điểm danh của sự kiện '{target_event}' thành công (giữ tiêu đề và đồng bộ Cloud).")
+                                        st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
                                         st.rerun()
                                 st.write("")
                                 if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_specific"):
