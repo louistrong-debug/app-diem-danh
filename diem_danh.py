@@ -349,6 +349,22 @@ def delete_all_attendance_dialog():
         st.rerun()
 
 
+@st.dialog("🎉 ĐIỂM DANH THÀNH CÔNG")
+def show_success_dialog(name, pb, cv, time_str):
+    st.markdown(f"""
+        <div style="text-align: center; padding: 10px;">
+            <h3 style="color: #16A34A; margin-bottom: 10px;">Cảm ơn Đồng chí!</h3>
+            <p style="font-size: 18px; font-weight: bold; color: #1E293B;">{name}</p>
+            <p style="color: #475569; margin: 5px 0;">🏢 Phòng ban: {pb}</p>
+            <p style="color: #475569; margin: 5px 0;">💼 Chức vụ: {cv}</p>
+            <p style="color: #0284C7; font-weight: bold; margin-top: 15px;">⏱️ Thời gian: {time_str}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    st.write("")
+    if st.button("✨ Hoàn tất", use_container_width=True):
+        st.rerun()
+
+
 def main():
     st.set_page_config(
         page_title="TTTM SATRA Phạm Hùng - Hệ Thống Điểm Danh", layout="wide"
@@ -459,10 +475,8 @@ def main():
                         with st.spinner("Đang lưu lên hệ thống Cloud..."):
                             sync_success = sync_single_record_to_google(record_data)
                         
-                        if sync_success: 
-                            st.success("🎉 Cảm ơn Đồng chí! Điểm danh thành công (đã lưu Cloud).")
                         st.balloons()
-                        st.rerun()
+                        show_success_dialog(selected_name, default_pb, default_cv, formatted_time)
 
     else:
         if not st.session_state["logged_in"]:
@@ -700,7 +714,7 @@ def main():
                 df_att = pd.read_excel(ATTENDANCE_FILE)
 
                 if "Nội dung Nghị quyết" in df_att.columns:
-                    df_att = df_att.rename(columns={"Nội dung": "Nội dung"})
+                    df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                     df_att.to_excel(ATTENDANCE_FILE, index=False)
 
                 if "Thời gian điểm danh" in df_att.columns:
