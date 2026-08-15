@@ -458,6 +458,7 @@ def main():
                             image_bytes = camera_photo.getvalue()
                             image_base64 = convert_image_to_base64(image_bytes)
 
+                            # Dữ liệu gốc chứa chuỗi Base64 đầy đủ
                             record_data = {
                                 "Nội dung": nq_title,
                                 "Ngày học": nq_date,
@@ -468,7 +469,7 @@ def main():
                                 "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
                             }
                             
-                            # 1. Lưu vào file Excel cục bộ trước
+                            # 1. LƯU VÀO FILE EXCEL CỤC BỘ (Giữ nguyên Base64 để hiển thị ảnh trên Web)
                             if os.path.exists(ATTENDANCE_FILE):
                                 df_att = pd.read_excel(ATTENDANCE_FILE)
                                 if "Nội dung Nghị quyết" in df_att.columns:
@@ -478,16 +479,17 @@ def main():
                                 df_att = pd.DataFrame([record_data])
                             df_att.to_excel(ATTENDANCE_FILE, index=False)
                             
-                            # 2. Khi đồng bộ lên Google Sheets, ta truyền chuỗi ngắn gọn hoặc bỏ qua chuỗi base64 nặng nề để chống lỗi nghẽn
+                            # 2. ĐỒNG BỘ LÊN GOOGLE SHEETS
+                            # Ta gửi một bản sao, rút gọn nội dung ảnh để tránh lỗi quá tải ô trên Google Sheets
                             record_data_for_sheet = record_data.copy()
-                            record_data_for_sheet["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)" # Thay chuỗi dài bằng chữ ngắn
+                            record_data_for_sheet["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)" 
                             
                             sync_success = sync_single_record_to_google(record_data_for_sheet)
                             
                         if sync_success:
                             st.success("🎉 Cảm ơn Đồng chí! Điểm danh và đồng bộ Cloud thành công.")
                         else:
-                            st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại (Kiểm tra lại quyền Google Sheets).")
+                            st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
                         st.balloons()
 
     # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
