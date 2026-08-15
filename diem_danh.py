@@ -336,6 +336,21 @@ def apply_custom_css():
         </style>
     """, unsafe_allow_html=True)
 
+# 🟢 DÁN ĐOẠN CODE NÀY VÀO ĐÂY:
+@st.dialog("🎉 Điểm Danh Thành Công")
+def success_attendance_dialog(selected_name, nq_title, formatted_time):
+    st.markdown(f"""
+        <div style="text-align: center; padding: 10px;">
+            <h3 style="color: #16A34A !important; margin-bottom: 10px;">Xác nhận thành công!</h3>
+            <p style="font-size: 17px; color: #1E293B; margin-bottom: 5px;">Cảm ơn đồng chí: <b>{selected_name}</b></p>
+            <p style="font-size: 16px; color: #475569; margin-bottom: 5px;">Sự kiện: <b>{nq_title}</b></p>
+            <p style="font-size: 15px; color: #64748B;">Thời gian: <b>{formatted_time}</b></p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.write("")
+    if st.button("🚀 Hoàn tất & Trở về", use_container_width=True, key="btn_close_success_popup"):
+        st.rerun()
 
 @st.dialog("⚠️ Xác Nhận Xóa Tiêu Đề")
 def delete_confirmation_dialog(target_title):
@@ -535,12 +550,12 @@ def main():
                             
                             sync_success = sync_single_record_to_google(record_data_for_sheet)
                             
-                        if sync_success:
-                            st.success("🎉 Cảm ơn Đồng chí! Điểm danh và đồng bộ Cloud thành công.")
-                        else:
+                        if not sync_success:
                             st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
+                        
+                        # Hiệu ứng pháo giấy và gọi Popup thông báo dạng Modal
                         st.balloons()
-                        st.rerun()
+                        success_attendance_dialog(selected_name, nq_title, formatted_time)
 
     # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
     else:
