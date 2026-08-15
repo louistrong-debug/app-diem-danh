@@ -513,7 +513,9 @@ def main():
                             st.success("🎉 Cảm ơn Đồng chí! Điểm danh và đồng bộ Cloud thành công.")
                         else:
                             st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
+                        
                         st.balloons()
+                        st.rerun() # <--- THÊM DÒNG NÀY VÀO ĐÂY ĐỂ TRANG TỰ TẢI LẠI
 
     # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
     else:
