@@ -619,26 +619,39 @@ def main():
                 st.markdown("### 🛠️ Thiết Lập Mã QR Điểm Danh")
                 st.write("")
 
-                selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
                 current_vn_date = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
-                default_title_val = ""
-                default_date_val = current_vn_date
 
-                if selected_rows and not df_titles.empty:
-                    selected_idx = selected_rows[0]
-                    if selected_idx < len(df_titles):
-                        default_title_val = str(df_titles.iloc[selected_idx]["Tên Tiêu đề"])
-                        raw_date = str(df_titles.iloc[selected_idx]["Ngày học"])
-                        try:
-                            default_date_val = datetime.strptime(raw_date.strip(), "%d/%m/%Y").date()
-                        except Exception:
-                            pass
+                if "selected_title_input" not in st.session_state:
+                    st.session_state["selected_title_input"] = ""
+                if "selected_date_input" not in st.session_state:
+                    st.session_state["selected_date_input"] = current_vn_date
+
+                if not df_titles.empty:
+                    event = st.dataframe(
+                        df_titles, 
+                        width="stretch", 
+                        height=200, 
+                        selection_mode="single-row", 
+                        on_select="rerun",
+                        key="titles_dataframe"
+                    )
+                    
+                    selected_rows = event.get("selection", {}).get("rows", [])
+                    if selected_rows:
+                        selected_idx = selected_rows[0]
+                        if selected_idx < len(df_titles):
+                            st.session_state["selected_title_input"] = str(df_titles.iloc[selected_idx]["Tên Tiêu đề"])
+                            raw_date = str(df_titles.iloc[selected_idx]["Ngày học"])
+                            try:
+                                st.session_state["selected_date_input"] = datetime.strptime(raw_date.strip(), "%d/%m/%Y").date()
+                            except Exception:
+                                pass
 
                 col_lbl1, col_input1 = st.columns([1.5, 8.5], gap="small")
                 with col_lbl1:
                     st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Tiêu đề:</p>", unsafe_allow_html=True)
                 with col_input1:
-                    nq_title_input = st.text_input("Nhập tiêu đề", value=default_title_val, placeholder="Nhập tên tiêu đề sự kiện / nghị quyết...", label_visibility="collapsed")
+                    nq_title_input = st.text_input("Nhập tiêu đề", value=st.session_state["selected_title_input"], placeholder="Nhập tên tiêu đề sự kiện / nghị quyết...", label_visibility="collapsed", key="input_title_field")
 
                 st.write("")
 
@@ -646,7 +659,7 @@ def main():
                 with col_lbl2:
                     st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày/tháng/năm:</p>", unsafe_allow_html=True)
                 with col_date2:
-                    nq_date_input = st.date_input("Chọn ngày/tháng/năm", value=default_date_val, label_visibility="collapsed", format="DD/MM/YYYY")
+                    nq_date_input = st.date_input("Chọn ngày/tháng/năm", value=st.session_state["selected_date_input"], label_visibility="collapsed", format="DD/MM/YYYY", key="input_date_field")
 
                 formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
@@ -656,15 +669,6 @@ def main():
 
                 if df_titles.empty:
                     st.info("ℹ️ Chưa có tiêu đề nào được thêm.")
-                else:
-                    event = st.dataframe(
-                        df_titles, 
-                        width="stretch", 
-                        height=200, 
-                        selection_mode="single-row", 
-                        on_select="rerun",
-                        key="titles_dataframe"
-                    )
 
             with col_right:
                 create_qr_clicked = st.button("🚀 Tạo mã QRCode (Hiệu lực 15 phút)", use_container_width=True)
