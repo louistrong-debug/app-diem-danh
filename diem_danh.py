@@ -745,6 +745,9 @@ def main():
                 
                 with col_btn1:
                     if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
+                        # Lấy danh sách dòng được chọn từ session state của dataframe điểm danh
+                        selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
+                        
                         if not selected_att_rows:
                             st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
                         else:
