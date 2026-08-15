@@ -75,7 +75,7 @@ def sync_to_google():
 
 
 def sync_from_google_to_local():
-    """Tải dữ liệu từ Google Sheets về lại file Excel cục bộ khi app khởi động để tránh mất dữ liệu"""
+    """Tải dữ liệu từ Google Sheets về lại file Excel cục bộ nhưng vẫn bảo vệ chuỗi ảnh Base64 local"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
@@ -88,8 +88,17 @@ def sync_from_google_to_local():
                 ws = spreadsheet.worksheet(sheet_key)
                 data = ws.get_all_records()
                 if data:
-                    df = pd.DataFrame(data)
-                    df.to_excel(filename, index=False)
+                    df_cloud = pd.DataFrame(data)
+                    
+                    # Nếu là file kết quả điểm danh, ta giữ lại chuỗi Base64 gốc ở máy nếu máy đang có
+                    if sheet_key == "ket_qua_diem_danh" and os.path.exists(filename):
+                        df_local = pd.read_excel(filename)
+                        if "Mã Ảnh Drive" in df_local.columns and "Mã Ảnh Drive" in df_cloud.columns:
+                            # Ghép cột Mã Ảnh Drive từ bản local sang bản cloud tải về để không bị mất ảnh
+                            if len(df_local) == len(df_cloud):
+                                df_cloud["Mã Ảnh Drive"] = df_local["Mã Ảnh Drive"].values
+                    
+                    df_cloud.to_excel(filename, index=False)
             except Exception:
                 pass
     except Exception:
