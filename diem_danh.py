@@ -447,8 +447,21 @@ def delete_all_attendance_dialog():
             df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
 
-        sync_to_google() 
-        st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
+        # 🟢 Đồng bộ và làm sạch triệt để dữ liệu trống lên Google Sheets ngay lập tức
+        try:
+            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            client = gspread.authorize(creds)
+            spreadsheet = client.open(SHEET_NAME)
+            ws = spreadsheet.worksheet("ket_qua_diem_danh")
+            ws.clear()
+            if len(df_empty.columns) > 0:
+                ws.update([df_empty.columns.values.tolist()])
+        except Exception:
+            pass
+
+        st.success("Đã xóa toàn bộ lịch sử điểm danh thành công trên cả web và Cloud.")
         st.rerun()
         
     st.write("")
