@@ -394,7 +394,7 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
                 df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
                 df_att.to_excel(ATTENDANCE_FILE, index=False)
                 
-                # 🟢 Thêm đoạn đồng bộ trực tiếp và làm sạch dữ liệu trên Google Sheets ngay lập tức
+                # Đồng bộ giữ nguyên chuỗi Base64 đầy đủ lên Google Sheets
                 try:
                     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
                     creds_dict = dict(st.secrets["gcp_service_account"])
@@ -405,8 +405,6 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
                     ws.clear()
                     
                     df_cloud = df_att.copy()
-                    if "Mã Ảnh Drive" in df_cloud.columns:
-                        df_cloud["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)"
                     df_cloud = df_cloud.fillna("")
                     
                     if not df_cloud.empty:
@@ -443,7 +441,7 @@ def delete_all_attendance_dialog():
             df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
 
-        # 🟢 Đồng bộ và làm sạch triệt để dữ liệu trống lên Google Sheets ngay lập tức
+        # Làm sạch và đồng bộ trạng thái trống lên Google Sheets
         try:
             scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
             creds_dict = dict(st.secrets["gcp_service_account"])
@@ -457,7 +455,7 @@ def delete_all_attendance_dialog():
         except Exception:
             pass
 
-        st.success("Đã xóa toàn bộ lịch sử điểm danh thành công trên cả web và Cloud.")
+        st.success("Đã xóa toàn bộ lịch sử điểm danh thành công.")
         st.rerun()
         
     st.write("")
