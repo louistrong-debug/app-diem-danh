@@ -184,7 +184,23 @@ def load_titles():
 
 def save_titles(df):
     df.to_excel(TITLES_FILE, index=False)
-    sync_to_google()
+    # Đồng bộ trực tiếp và làm sạch dữ liệu bảng tiêu đề trên Google Sheets ngay lập tức
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open(SHEET_NAME)
+        ws = spreadsheet.worksheet("danh_sach_tieu_de")
+        ws.clear()
+        df_clean = df.fillna("")
+        if not df_clean.empty:
+            ws.update([df_clean.columns.values.tolist()] + df_clean.astype(str).values.tolist())
+        else:
+            if len(df_clean.columns) > 0:
+                ws.update([df_clean.columns.values.tolist()])
+    except Exception:
+        pass
 
 
 def load_users():
