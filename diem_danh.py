@@ -559,7 +559,7 @@ def main():
                         vn_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
                         formatted_time = vn_time.strftime("%d/%m/%Y %H:%M:%S")
                         
-                        with st.spinner("Đang xử lý và ghi nhận điểm danh..."):
+                        with st.spinner("Đang xử lý và đồng bộ lên Cloud..."):
                             image_bytes = camera_photo.getvalue()
                             image_base64 = convert_image_to_base64(image_bytes)
 
@@ -573,6 +573,7 @@ def main():
                                 "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
                             }
                             
+                            # 1. Lưu xuống file Excel cục bộ trước
                             if os.path.exists(ATTENDANCE_FILE):
                                 df_att = pd.read_excel(ATTENDANCE_FILE)
                                 if "Nội dung Nghị quyết" in df_att.columns:
@@ -582,22 +583,20 @@ def main():
                                 df_att = pd.DataFrame([record_data])
                             df_att.to_excel(ATTENDANCE_FILE, index=False)
                             
-                            record_data_for_sheet = record_data.copy()
-                            record_data_for_sheet["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)" 
-                            
-                            sync_success = sync_single_record_to_google(record_data_for_sheet)
-                            
-                            if not sync_success:
-                                st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
-                            
-                            # 🟢 DÁN ĐOẠN NÀY VÀO ĐÂY ĐỂ XÓA BỘ NHỚ TẠM CAMERA:
+                            # 2. Gọi trực tiếp hàm sync_to_google() để đồng bộ toàn bộ lên Cloud an toàn tuyệt đối
+                            sync_success = sync_to_google()
+
+                        # 3. Chỉ khi đồng bộ thành công trên Cloud mới hiển thị Popup và hiệu ứng ngay trong 1 lần bấm duy nhất
+                        if sync_success:
+                            # Xóa bộ nhớ tạm của camera để người tiếp theo điểm danh không bị kẹt ảnh cũ
                             for key in list(st.session_state.keys()):
                                 if "camera_input" in key:
                                     st.session_state.pop(key)
-
-                            # Hiệu ứng pháo giấy và gọi Popup thông báo
+                                    
                             st.balloons()
                             success_attendance_dialog(selected_name, nq_title, formatted_time)
+                        else:
+                            st.error("❌ Đồng bộ lên Google Sheets thất bại! Vui lòng kiểm tra lại mạng và bấm xác nhận lại.")
 
     # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
     else:
