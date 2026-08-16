@@ -348,18 +348,18 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 # 🟢 DÁN ĐOẠN CODE NÀY VÀO ĐÂY:
-@st.dialog("🎉 Điểm Danh")
+@st.dialog("🎉🎉 <span style='color: #EA580C;'>Điểm Danh</span> 🎉🎉")
 def success_attendance_dialog(selected_name, nq_title, formatted_time):
     st.markdown(f"""
-        <div style="text-align: center; padding: 10px;">
-            <h3 style="color: #EA580C !important; margin-bottom: 9px;">Xác nhận thành công!</h2>
-            <p style="font-size: 17px; color: #1E293B; margin-bottom: 5px;">Cảm ơn đồng chí: <b>{selected_name}</b></p>
-            <p style="font-size: 15px; color: #64748B;">Thời gian: <b>{formatted_time}</b></p>
+        <div style="text-align: center; padding: 12px;">
+            <h3 style="color: #0284C7 !important; margin-bottom: 9px;">Xác nhận thành công!</h3>
+            <p style="font-size: 15px; color: #1E293B; margin-bottom: 5px;">Cảm ơn đồng chí: <b>{selected_name}</b></p>
+            <p style="font-size: 14px; color: #64748B;">Thời gian: <b>{formatted_time}</b></p>
         </div>
     """, unsafe_allow_html=True)
     
     st.write("")
-    if st.button("🚀 Hoàn tất & Trở về", use_container_width=True, key="btn_close_success_popup"):
+    if st.button("🚀 Hoàn tất & Trở về 🚀", use_container_width=True, key="btn_close_success_popup"):
         st.rerun()
 
 @st.dialog("⚠️ Xác Nhận Xóa Tiêu Đề")
