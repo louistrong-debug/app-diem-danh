@@ -231,22 +231,8 @@ def save_users(df):
 
 def sync_single_record_to_google(record_dict):
     try:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
-        spreadsheet = client.open(SHEET_NAME)
-        ws = spreadsheet.worksheet("ket_qua_diem_danh")
-        ws.append_row([
-            record_dict.get("Nội dung"),
-            record_dict.get("Ngày học"),
-            record_dict.get("Họ tên"),
-            record_dict.get("Phòng ban"),
-            record_dict.get("Chức vụ"),
-            record_dict.get("Thời gian điểm danh"),
-            record_dict.get("Mã Ảnh Drive", "")
-        ])
-        return True
+        # Gọi thẳng hàm đồng bộ tổng để đẩy file Excel đã lưu lên thẳng Google Sheets
+        return sync_to_google()
     except Exception:
         return False
 
