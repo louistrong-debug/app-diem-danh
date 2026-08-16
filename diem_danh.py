@@ -601,7 +601,7 @@ def main():
                             
                             sync_success = sync_single_record_to_google(record_data_for_sheet)
                             
-                        if not sync_success:
+                            if not sync_success:
                                 st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
                             
                             # 🟢 DÁN ĐOẠN NÀY VÀO ĐÂY ĐỂ XÓA BỘ NHỚ TẠM CAMERA:
