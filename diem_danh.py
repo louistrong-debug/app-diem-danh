@@ -348,7 +348,7 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 # 🟢 DÁN ĐOẠN CODE NÀY VÀO ĐÂY:
-@st.dialog("🎉 Ghi nhận Điểm Danh 🎉")
+@st.dialog("🟢 Ghi nhận Điểm Danh")
 def success_attendance_dialog(selected_name, nq_title, formatted_time):
     st.markdown(f"""
         <div style="text-align: center; padding: 9px;">
