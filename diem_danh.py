@@ -602,11 +602,16 @@ def main():
                             sync_success = sync_single_record_to_google(record_data_for_sheet)
                             
                         if not sync_success:
-                            st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
-                        
-                        # Hiệu ứng pháo giấy và gọi Popup thông báo dạng Modal
-                        st.balloons()
-                        success_attendance_dialog(selected_name, nq_title, formatted_time)
+                                st.warning("⚠️ Điểm danh đã lưu cục bộ nhưng đồng bộ Cloud thất bại.")
+                            
+                            # 🟢 DÁN ĐOẠN NÀY VÀO ĐÂY ĐỂ XÓA BỘ NHỚ TẠM CAMERA:
+                            for key in list(st.session_state.keys()):
+                                if "camera_input" in key:
+                                    st.session_state.pop(key)
+
+                            # Hiệu ứng pháo giấy và gọi Popup thông báo
+                            st.balloons()
+                            success_attendance_dialog(selected_name, nq_title, formatted_time)
 
     # ========================== GIAO DIỆN QUẢN TRỊ VIÊN ==========================
     else:
