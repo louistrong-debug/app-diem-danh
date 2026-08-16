@@ -408,7 +408,30 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
             if row_index_to_delete in df_att.index:
                 df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
                 df_att.to_excel(ATTENDANCE_FILE, index=False)
-                sync_to_google() 
+                
+                # 🟢 Thêm đoạn đồng bộ trực tiếp và làm sạch dữ liệu trên Google Sheets ngay lập tức
+                try:
+                    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+                    creds_dict = dict(st.secrets["gcp_service_account"])
+                    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+                    client = gspread.authorize(creds)
+                    spreadsheet = client.open(SHEET_NAME)
+                    ws = spreadsheet.worksheet("ket_qua_diem_danh")
+                    ws.clear()
+                    
+                    df_cloud = df_att.copy()
+                    if "Mã Ảnh Drive" in df_cloud.columns:
+                        df_cloud["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)"
+                    df_cloud = df_cloud.fillna("")
+                    
+                    if not df_cloud.empty:
+                        ws.update([df_cloud.columns.values.tolist()] + df_cloud.astype(str).values.tolist())
+                    else:
+                        if len(df_cloud.columns) > 0:
+                            ws.update([df_cloud.columns.values.tolist()])
+                except Exception:
+                    pass
+
                 st.success(f"Đã xóa thành công lượt điểm danh của: {row_data['Họ tên']}")
                 st.rerun()
             else:
