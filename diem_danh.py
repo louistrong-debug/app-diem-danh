@@ -63,7 +63,7 @@ def convert_image_to_base64(image_bytes):
 
 
 def sync_to_google():
-    """Hàm đồng bộ toàn bộ dữ liệu lên Google Sheets"""
+    """Hàm đồng bộ toàn bộ dữ liệu lên Google Sheets (Riêng cột Mã Ảnh Drive sẽ được ẩn gọn thành chữ Đã lưu ảnh để nhẹ file)"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
@@ -75,6 +75,11 @@ def sync_to_google():
         for sheet_key, filename in FILES_MAP.items():
             if os.path.exists(filename):
                 df = pd.read_excel(filename)
+                
+                # 🟢 Lọc riêng cho bảng điểm danh: Chuyển chuỗi Base64 dài thành chữ gọn gàng trước khi đẩy lên Cloud
+                if sheet_key == "ket_qua_diem_danh" and "Mã Ảnh Drive" in df.columns:
+                    df = df.copy()
+                    df["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)"
             else:
                 df = pd.DataFrame()
                 
