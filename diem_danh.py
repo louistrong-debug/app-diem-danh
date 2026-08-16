@@ -772,7 +772,11 @@ def main():
                         else:
                             new_row = pd.DataFrame([{"Tên Tiêu đề": title_input, "Ngày học": formatted_date_str}])
                             df_titles_current = pd.concat([df_titles_current, new_row], ignore_index=True)
+                            
+                            # 🟢 Lưu trực tiếp xuống file Excel cục bộ trước, sau đó mới gọi hàm đồng bộ
+                            df_titles_current.to_excel(TITLES_FILE, index=False)
                             save_titles(df_titles_current)
+                            
                             st.success("✨ Đã tạo mã QR và đồng bộ lên Cloud thành công!")
                             st.rerun()
 
