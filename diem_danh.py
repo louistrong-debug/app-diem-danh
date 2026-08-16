@@ -348,7 +348,7 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 # 🟢 DÁN ĐOẠN CODE NÀY VÀO ĐÂY:
-@st.dialog("🎉 Ghi nhận Điểm Danh")
+@st.dialog("🎉 Ghi nhận Điểm Danh 🎉")
 def success_attendance_dialog(selected_name, nq_title, formatted_time):
     st.markdown(f"""
         <div style="text-align: center; padding: 9px;">
@@ -361,6 +361,10 @@ def success_attendance_dialog(selected_name, nq_title, formatted_time):
     
     st.write("")
     if st.button("🚀 Hoàn tất 🚀", use_container_width=True, key="btn_close_success_popup"):
+        # Xóa toàn bộ bộ nhớ tạm của camera và trạng thái để làm mới trang điểm danh
+        for key in list(st.session_state.keys()):
+            if "camera_input" in key or key == "selected_name":
+                st.session_state.pop(key, None)
         st.rerun()
 
 @st.dialog("⚠️ Xác Nhận Xóa Tiêu Đề")
