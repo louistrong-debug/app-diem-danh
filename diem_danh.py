@@ -63,7 +63,7 @@ def convert_image_to_base64(image_bytes):
 
 
 def sync_to_google():
-    """Hàm đồng bộ toàn bộ dữ liệu lên Google Sheets an toàn và tối ưu"""
+    """Hàm đồng bộ toàn bộ dữ liệu lên Google Sheets tự động và an toàn"""
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
@@ -76,7 +76,7 @@ def sync_to_google():
             if os.path.exists(filename):
                 df = pd.read_excel(filename)
                 
-                # 🟢 Chuyển chuỗi Base64 dài thành chữ gọn gàng trước khi đẩy lên Cloud (tránh tràn 50k ký tự)
+                # Riêng bảng điểm danh: Chuyển chuỗi Base64 thành chữ gọn gàng trước khi đẩy lên Cloud
                 if sheet_key == "ket_qua_diem_danh" and "Mã Ảnh Drive" in df.columns:
                     df = df.copy()
                     df["Mã Ảnh Drive"] = "Đã lưu ảnh (Base64)"
@@ -88,9 +88,9 @@ def sync_to_google():
             except Exception:
                 ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
             
+            # Xóa dữ liệu cũ trên sheet trước khi cập nhật để đảm bảo lệnh Xóa (Tiêu đề, User, Điểm danh) đồng bộ chính xác
             ws.clear()
             
-            # Chuẩn hóa dữ liệu thành dạng chuỗi (string) toàn bộ để tránh lỗi định dạng của gspread
             df = df.fillna("")
             if not df.empty:
                 data_to_update = [df.columns.values.tolist()] + df.astype(str).values.tolist()
@@ -100,7 +100,6 @@ def sync_to_google():
                     ws.update([df.columns.values.tolist()])
         return True
     except Exception as e:
-        print(f"Lỗi sync_to_google: {e}")
         return False
 
 
