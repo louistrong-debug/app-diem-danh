@@ -183,7 +183,9 @@ def load_titles():
 
 
 def save_titles(df):
+    # Lưu trực tiếp vào file Excel cục bộ
     df.to_excel(TITLES_FILE, index=False)
+    
     # Đồng bộ trực tiếp và làm sạch dữ liệu bảng tiêu đề trên Google Sheets ngay lập tức
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -193,6 +195,7 @@ def save_titles(df):
         spreadsheet = client.open(SHEET_NAME)
         ws = spreadsheet.worksheet("danh_sach_tieu_de")
         ws.clear()
+        
         df_clean = df.fillna("")
         if not df_clean.empty:
             ws.update([df_clean.columns.values.tolist()] + df_clean.astype(str).values.tolist())
