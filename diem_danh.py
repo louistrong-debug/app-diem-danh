@@ -1026,22 +1026,25 @@ def main():
                 if not os.path.exists(ATTENDANCE_FILE) or not os.path.exists(TITLES_FILE) or not os.path.exists(EXCEL_FILE):
                     st.info("ℹ️ Chưa đủ dữ liệu từ các file (Điểm danh, Tiêu đề, Nhân sự) để tổng hợp báo cáo.")
                 else:
-                    df_att = pd.read_excel(ATTENDANCE_FILE)
+                    df_att_raw = pd.read_excel(ATTENDANCE_FILE)
                     df_titles = pd.read_excel(TITLES_FILE)
                     df_nhansu = pd.read_excel(EXCEL_FILE)
 
-                    if "Nội dung Nghị quyết" in df_att.columns:
-                        df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                    if "Nội dung Nghị quyết" in df_att_raw.columns:
+                        df_att_raw = df_att_raw.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+
+                    # LỌC BỎ TRÙNG LẶP: Nếu 1 người điểm danh nhiều lần trong cùng 1 sự kiện, chỉ giữ lại 1 lần duy nhất
+                    df_att = df_att_raw.drop_duplicates(subset=["Nội dung", "Họ tên"]).copy()
 
                     total_events = len(df_titles)
                     total_staff = len(df_nhansu)
-                    total_attendance_records = len(df_att)
+                    total_attendance_records = len(df_att) # Tổng số lượt duy nhất sau khi lọc trùng
 
                     # A. PHẦN TỔNG QUAN (TOP WIDGETS - KPI)
                     col_kpi1, col_kpi2, col_kpi3 = st.columns(3, gap="medium")
                     
                     with col_kpi1:
-                        st.metric(label="📋 Tổng Số Lượt Điểm Danh", value=f"{total_attendance_records} lượt")
+                        st.metric(label="📋 Tổng Số Lượt Điểm Danh (Đã lọc trùng)", value=f"{total_attendance_records} lượt")
 
                     with col_kpi2:
                         max_possible_attendance = total_staff * total_events if (total_staff > 0 and total_events > 0) else 1
@@ -1113,14 +1116,14 @@ def main():
 
                     st.write("---")
 
-                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (MỚI BỔ SUNG)
+                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (ĐÃ LỌC TRÙNG)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
                     if not df_titles.empty:
                         list_all_events = df_titles["Tên Tiêu đề"].tolist()
                         selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
 
                         if selected_detail_event:
-                            # Lọc dữ liệu điểm danh của riêng sự kiện được chọn
+                            # Lọc dữ liệu điểm danh độc nhất của riêng sự kiện được chọn
                             df_event_att = df_att[df_att["Nội dung"] == selected_detail_event]
                             event_attendees_count = len(df_event_att)
                             event_rate = (event_attendees_count / total_staff * 100) if total_staff > 0 else 0
@@ -1128,7 +1131,7 @@ def main():
                             # KPI riêng cho sự kiện
                             col_ev1, col_ev2, col_ev3 = st.columns(3, gap="medium")
                             with col_ev1:
-                                st.metric(label="👥 Tổng Số Người Tham Gia", value=f"{event_attendees_count} / {total_staff} nhân sự")
+                                st.metric(label="👥 Tổng Số Người Tham Gia (Duy nhất)", value=f"{event_attendees_count} / {total_staff} nhân sự")
                             with col_ev2:
                                 st.metric(label="📊 Tỉ Lệ Tham Gia Sự Kiện", value=f"{event_rate:.1f}%")
                             with col_ev3:
@@ -1179,7 +1182,7 @@ def main():
 
                     st.write("---")
 
-                    # D. PHẦN CẢNH BÁO & VINH DANH TỔNG QUAN
+                    # D. PHẦN CẢNH BÁO & VINH DANH TỔNG QUAN (DỰA TRÊN DỮ LIỆU ĐÃ LỌC TRÙNG)
                     st.markdown("### 📋 Phân Loại Nhân Sự Theo Mức Độ Tham Gia Tổng Thể")
 
                     if total_events > 0 and not df_nhansu.empty:
