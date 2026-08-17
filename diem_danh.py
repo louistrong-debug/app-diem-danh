@@ -1209,38 +1209,24 @@ def main():
 
                     st.write("---")
 
-                    # D. PHẦN CẢNH BÁO & VINH DANH TỔNG QUAN
-                    st.markdown("### 📋 Phân Loại Nhân Sự Theo Mức Độ Tham Gia Tổng Thể")
+                    # D. PHẦN TỔNG HỢP TOÀN BỘ NHÂN SỰ (THAY THẾ PHẢN CẢNH BÁO CŨ)
+                    st.markdown("### 📋 Bảng Tổng Hợp Tình Hình Tham Gia Sinh Hoạt")
 
                     if total_events > 0 and not df_nhansu.empty:
                         attendance_counts = df_att.groupby("Họ tên").size().reset_index(name="Số buổi tham gia")
                         df_summary = pd.merge(df_nhansu, attendance_counts, on="Họ tên", how="left").fillna({"Số buổi tham gia": 0})
+                        df_summary["Tổng Sự kiện"] = total_events
                         df_summary["Số buổi vắng"] = total_events - df_summary["Số buổi tham gia"]
                         df_summary["Tỉ lệ tham gia (%)"] = ((df_summary["Số buổi tham gia"] / total_events) * 100).round(1)
 
-                        col_tab1, col_tab2 = st.columns(2, gap="large")
+                        # Sắp xếp mặc định Tỉ lệ tham gia (%) tăng dần (từ 0% lên cao nhất)
+                        df_summary = df_summary.sort_values(by="Tỉ lệ tham gia (%)", ascending=True).reset_index(drop=True)
+                        df_summary["STT"] = range(1, len(df_summary) + 1)
 
-                        with col_tab1:
-                            st.markdown("#### ⚠️ Danh Sách Cần Lưu Ý (Vắng nhiều < 50%)")
-                            df_warning = df_summary[df_summary["Tỉ lệ tham gia (%)"] < 50.0].copy()
-                            if not df_warning.empty:
-                                df_warning = df_warning.reset_index(drop=True)
-                                df_warning["STT"] = range(1, len(df_warning) + 1)
-                                df_warning = df_warning[["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi vắng", "Tỉ lệ tham gia (%)"]]
-                                st.dataframe(df_warning, use_container_width=True, hide_index=True)
-                            else:
-                                st.success("✨ Tuyệt vời! Không có nhân sự nào vắng quá 50% số sự kiện.")
+                        # Sắp xếp lại thứ tự cột cho đúng yêu cầu
+                        df_summary_show = df_summary[["STT", "Họ tên", "Phòng ban", "Chức vụ", "Tổng Sự kiện", "Số buổi vắng", "Tỉ lệ tham gia (%)"]]
 
-                        with col_tab2:
-                            st.markdown("#### 🌟 Gương Mẫu (Tham gia 100% sự kiện)")
-                            df_exemplary = df_summary[df_summary["Số buổi tham gia"] == total_events].copy()
-                            if not df_exemplary.empty:
-                                df_exemplary = df_exemplary.reset_index(drop=True)
-                                df_exemplary["STT"] = range(1, len(df_exemplary) + 1)
-                                df_exemplary = df_exemplary[["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi tham gia"]]
-                                st.dataframe(df_exemplary, use_container_width=True, hide_index=True)
-                            else:
-                                st.info("ℹ️ Hiện chưa có nhân sự nào đạt mốc tham gia 100% tất cả các sự kiện.")
+                        st.dataframe(df_summary_show, use_container_width=True, height=400, hide_index=True)
                     else:
                         st.info("ℹ️ Cần có ít nhất 1 sự kiện và danh sách nhân sự để phân tích chi tiết.")
 
