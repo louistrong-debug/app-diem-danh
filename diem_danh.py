@@ -171,10 +171,14 @@ def load_titles():
     if os.path.exists(TITLES_FILE):
         try:
             df_t = pd.read_excel(TITLES_FILE)
-            if "Tên Tiêu đề" in df_t.columns and "Sự kiện" not in df_t.columns:
+            if "Tên Tiêu đề" in df_t.columns:
                 df_t = df_t.rename(columns={"Tên Tiêu đề": "Sự kiện"})
-            if "Ngày học" in df_t.columns and "Ngày tổ chức" not in df_t.columns:
+            if "Ngày học" in df_t.columns:
                 df_t = df_t.rename(columns={"Ngày học": "Ngày tổ chức"})
+            if "Sự kiện" not in df_t.columns:
+                df_t["Sự kiện"] = []
+            if "Ngày tổ chức" not in df_t.columns:
+                df_t["Ngày tổ chức"] = []
             return df_t
         except Exception:
             return pd.DataFrame(columns=["Sự kiện", "Ngày tổ chức"])
@@ -682,7 +686,7 @@ def main():
                 st.write("")
                 st.markdown("#### 📋 Danh Sách Sự Kiện Đã Thiết Lập")
 
-                if df_titles.empty:
+                if df_titles.empty or "Sự kiện" not in df_titles.columns:
                     st.info("ℹ️ Chưa có sự kiện nào được thêm.")
                 else:
                     df_titles_show = df_titles.copy().reset_index(drop=True)
@@ -741,7 +745,7 @@ def main():
                         img.save("temp_qr.png")
 
                         df_titles_current = load_titles()
-                        if title_input in df_titles_current["Sự kiện"].values:
+                        if not df_titles_current.empty and "Sự kiện" in df_titles_current.columns and title_input in df_titles_current["Sự kiện"].values:
                             st.success("✨ Đã tạo mã QR mới thành công!")
                         else:
                             new_row = pd.DataFrame([{"Sự kiện": title_input, "Ngày tổ chức": formatted_date_str}])
@@ -850,7 +854,7 @@ def main():
                         df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
                     ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
 
-                list_nq = df_att["Nội dung"].unique().tolist()
+                list_nq = df_att["Nội dung"].unique().tolist() if "Nội dung" in df_att.columns else []
                 selected_filter = st.selectbox(
                     "🔍 Lọc theo sự kiện:", ["Tất cả"] + list_nq
                 )
@@ -1077,7 +1081,7 @@ def main():
                         st.metric(label="📊 Tỉ Lệ Chuyên Cần Trung Bình", value=f"{avg_attendance_rate:.1f}%")
 
                     with col_kpi3:
-                        latest_event = df_titles.iloc[-1]["Sự kiện"] if not df_titles.empty else "Chưa có"
+                        latest_event = df_titles.iloc[-1]["Sự kiện"] if not df_titles.empty and "Sự kiện" in df_titles.columns else "Chưa có"
                         latest_count = len(df_att[df_att["Nội dung"] == latest_event]) if not df_titles.empty else 0
                         latest_rate = (latest_count / total_staff * 100) if total_staff > 0 else 0
                         st.metric(label="🔥 Sự Kiện Gần Nhất", value=f"{latest_rate:.1f}%", help=f"Sự kiện: {latest_event} ({latest_count}/{total_staff} nhân sự)")
@@ -1116,12 +1120,12 @@ def main():
 
                     with col_chart2:
                         st.markdown("#### 📈 Xu Hướng Điểm Danh Theo Sự Kiện")
-                        if not df_titles.empty and not df_att.empty:
+                        if not df_titles.empty and not df_att.empty and "Sự kiện" in df_titles.columns:
                             event_counts = []
                             for idx, row in df_titles.iterrows():
                                 ev_title = row["Sự kiện"]
                                 count = len(df_att[df_att["Nội dung"] == ev_title])
-                                event_counts.append({"Sự kiện": ev_title, "Ngày tổ chức": row["Ngày tổ chức"], "Số người tham gia": count})
+                                event_counts.append({"Sự kiện": ev_title, "Ngày tổ chức": row.get("Ngày tổ chức", ""), "Số người tham gia": count})
                             
                             df_trend = pd.DataFrame(event_counts)
                             
@@ -1141,7 +1145,7 @@ def main():
 
                     # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (ĐÃ LỌC TRÙNG)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
-                    if not df_titles.empty:
+                    if not df_titles.empty and "Sự kiện" in df_titles.columns:
                         list_all_events = df_titles["Sự kiện"].tolist()
                         selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
 
