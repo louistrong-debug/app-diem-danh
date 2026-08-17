@@ -13,6 +13,7 @@ import qrcode
 import streamlit as st
 import streamlit.components.v1 as components
 from PIL import Image
+import plotly.express as px
 
 # Tắt các thông báo cảnh báo không cần thiết trên terminal
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -88,7 +89,6 @@ def sync_to_google():
             
             df = df.fillna("")
             if not df.empty:
-                # Đẩy toàn bộ dữ liệu (bao gồm cả chuỗi mã ảnh dài) lên Google Sheets
                 data_to_update = [df.columns.values.tolist()] + df.astype(str).values.tolist()
                 ws.update(data_to_update)
             else:
@@ -179,10 +179,7 @@ def load_titles():
 
 
 def save_titles(df):
-    # Lưu trực tiếp vào file Excel cục bộ
     df.to_excel(TITLES_FILE, index=False)
-    
-    # Đồng bộ trực tiếp và làm sạch dữ liệu bảng tiêu đề trên Google Sheets ngay lập tức
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
@@ -225,27 +222,17 @@ def save_users(df):
     sync_to_google()
 
 
-def sync_single_record_to_google(record_dict):
-    try:
-        # Gọi thẳng hàm đồng bộ tổng để đẩy file Excel đã lưu lên thẳng Google Sheets
-        return sync_to_google()
-    except Exception:
-        return False
-
-
 def apply_custom_css():
     st.markdown("""
         <style>
             .stApp {
                 background-color: #F8FAFC;
             }
-
             .block-container {
                 padding-top: 2.5rem !important;
                 padding-bottom: 2rem !important;
                 max-width: 95% !important;
             }
-
             .app-header {
                 background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
                 padding: 20px 16px;
@@ -280,7 +267,6 @@ def apply_custom_css():
                 margin: 0;
                 letter-spacing: 0.3px;
             }
-
             .stTabs [data-baseweb="tab-list"] {
                 gap: 12px;
                 background-color: #E2E8F0;
@@ -302,11 +288,6 @@ def apply_custom_css():
                 background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%) !important;
                 color: #F97316 !important;
             }
-
-            div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlock"] {
-                gap: 0.4rem !important;
-            }
-
             label, .stTextInput label, .stSelectbox label, .stDateInput label {
                 font-size: 17px !important;
                 font-weight: 700 !important;
@@ -315,7 +296,6 @@ def apply_custom_css():
             input, div[data-baseweb="select"] span {
                 font-size: 14px !important;
             }
-
             h3 {
                 color: #0F172A !important;
                 font-size: 24px !important;
@@ -323,7 +303,6 @@ def apply_custom_css():
                 margin-top: -10px !important;
                 margin-bottom: 5px !important;
             }
-
             div[data-testid="stColumn"] div[data-testid="stButton"] > button,
             div[data-testid="stDownloadButton"] > button {
                 width: 100% !important;
@@ -340,14 +319,10 @@ def apply_custom_css():
             div[data-testid="stDownloadButton"] > button:hover {
                 background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
             }
-
-            .stDataFrame {
-                font-size: 18px !important;
-            }
         </style>
     """, unsafe_allow_html=True)
 
-# 🟢 DÁN ĐOẠN CODE NÀY VÀO ĐÂY:
+
 @st.dialog("🟢 Ghi nhận Điểm Danh")
 def success_attendance_dialog(selected_name, nq_title, formatted_time):
     st.markdown(f"""
@@ -361,11 +336,11 @@ def success_attendance_dialog(selected_name, nq_title, formatted_time):
     
     st.write("")
     if st.button("🚀 Hoàn tất 🚀", use_container_width=True, key="btn_close_success_popup"):
-        # Xóa toàn bộ bộ nhớ tạm của camera và trạng thái để làm mới trang điểm danh
         for key in list(st.session_state.keys()):
             if "camera_input" in key or key == "selected_name":
                 st.session_state.pop(key, None)
         st.rerun()
+
 
 @st.dialog("⚠️ Xác Nhận Xóa Tiêu Đề")
 def delete_confirmation_dialog(target_title):
@@ -399,7 +374,6 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
                 df_att = df_att.drop(index=row_index_to_delete).reset_index(drop=True)
                 df_att.to_excel(ATTENDANCE_FILE, index=False)
                 
-                # Đồng bộ giữ nguyên chuỗi Base64 đầy đủ lên Google Sheets
                 try:
                     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
                     creds_dict = dict(st.secrets["gcp_service_account"])
@@ -409,9 +383,7 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
                     ws = spreadsheet.worksheet("ket_qua_diem_danh")
                     ws.clear()
                     
-                    df_cloud = df_att.copy()
-                    df_cloud = df_cloud.fillna("")
-                    
+                    df_cloud = df_att.copy().fillna("")
                     if not df_cloud.empty:
                         ws.update([df_cloud.columns.values.tolist()] + df_cloud.astype(str).values.tolist())
                     else:
@@ -446,7 +418,6 @@ def delete_all_attendance_dialog():
             df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
 
-        # Làm sạch và đồng bộ trạng thái trống lên Google Sheets
         try:
             scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
             creds_dict = dict(st.secrets["gcp_service_account"])
@@ -585,7 +556,6 @@ def main():
                                 "Mã Ảnh Drive": image_base64 if image_base64 else "Chưa lưu"
                             }
                             
-                            # 1. Lưu xuống file Excel cục bộ trước
                             if os.path.exists(ATTENDANCE_FILE):
                                 df_att = pd.read_excel(ATTENDANCE_FILE)
                                 if "Nội dung Nghị quyết" in df_att.columns:
@@ -595,12 +565,9 @@ def main():
                                 df_att = pd.DataFrame([record_data])
                             df_att.to_excel(ATTENDANCE_FILE, index=False)
                             
-                            # 2. Gọi trực tiếp hàm sync_to_google() để đồng bộ toàn bộ lên Cloud an toàn tuyệt đối
                             sync_success = sync_to_google()
 
-                        # 3. Chỉ khi đồng bộ thành công trên Cloud mới hiển thị Popup và hiệu ứng ngay trong 1 lần bấm duy nhất
                         if sync_success:
-                            # Xóa bộ nhớ tạm của camera để người tiếp theo điểm danh không bị kẹt ảnh cũ
                             for key in list(st.session_state.keys()):
                                 if "camera_input" in key:
                                     st.session_state.pop(key)
@@ -659,7 +626,8 @@ def main():
                 "🎯 1. Tạo QR", 
                 "📊 2. Điểm Danh", 
                 "👥 3. Nhân Sự", 
-                "🔐 4. Quản Trị User"
+                "🔐 4. Quản Trị User",
+                "📈 5. Báo Cáo Chuyên Sâu"
             ]
         else:
             tab_labels = [
@@ -667,25 +635,15 @@ def main():
                 "📊 2. Điểm Danh"
             ]
 
-        current_tab_str = query_params.get("tab", "0")
-        try:
-            current_tab_idx = int(current_tab_str)
-            if current_tab_idx < 0 or current_tab_idx >= len(tab_labels):
-                current_tab_idx = 0
-        except Exception:
-            current_tab_idx = 0
-
         rendered_tabs = st.tabs(tab_labels)
 
-        # ------------------ TAB 1: TẠO MÃ QR (GIỮ NGUYÊN FORM GỐC TRÁI - PHẢI) ------------------
+        # ------------------ TAB 1: TẠO MÃ QR ------------------
         with rendered_tabs[0]:
             col_left, col_right = st.columns([2, 1], gap="large")
 
             df_titles = load_titles()
-
             current_vn_date = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
 
-            # Khởi tạo session state lưu tiêu đề và ngày chọn
             if "selected_title_input" not in st.session_state:
                 st.session_state["selected_title_input"] = ""
             if "selected_date_input" not in st.session_state:
@@ -712,7 +670,6 @@ def main():
                 formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
                 st.write("")
-
                 st.markdown("#### 📋 Danh Sách Tiêu Đề Đã Thiết Lập")
 
                 if df_titles.empty:
@@ -727,7 +684,6 @@ def main():
                         key="titles_dataframe"
                     )
                     
-                    # Lắng nghe sự kiện click chọn dòng trong bảng để cập nhật ngay vào session state
                     selected_rows = event.get("selection", {}).get("rows", [])
                     if selected_rows:
                         selected_idx = selected_rows[0]
@@ -739,7 +695,6 @@ def main():
                             except Exception:
                                 new_date = current_vn_date
                             
-                            # Cập nhật nếu có thay đổi để tránh vòng lặp rerun
                             if st.session_state["selected_title_input"] != new_title or st.session_state["selected_date_input"] != new_date:
                                 st.session_state["selected_title_input"] = new_title
                                 st.session_state["selected_date_input"] = new_date
@@ -777,11 +732,8 @@ def main():
                         else:
                             new_row = pd.DataFrame([{"Tên Tiêu đề": title_input, "Ngày học": formatted_date_str}])
                             df_titles_current = pd.concat([df_titles_current, new_row], ignore_index=True)
-                            
-                            # 🟢 Lưu trực tiếp xuống file Excel cục bộ trước, sau đó mới gọi hàm đồng bộ
                             df_titles_current.to_excel(TITLES_FILE, index=False)
                             save_titles(df_titles_current)
-                            
                             st.success("✨ Đã tạo mã QR và đồng bộ lên Cloud thành công!")
                             st.rerun()
 
@@ -904,7 +856,6 @@ def main():
                     key="attendance_dataframe"
                 )
 
-                # --- KHUNG HIỂN THỊ ẢNH XÁC THỰC CỦA DÒNG ĐƯỢC CHỌN ---
                 selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
                 if selected_att_rows:
                     selected_idx_in_filtered = selected_att_rows[0]
@@ -953,7 +904,7 @@ def main():
                                         df_att_all = pd.read_excel(ATTENDANCE_FILE)
                                         if "Nội dung Nghị quyết" in df_att_all.columns:
                                             df_att_all = df_att_all.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                                        
+                                    
                                         df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                         df_remaining.to_excel(ATTENDANCE_FILE, index=False)
                                         sync_to_google() 
@@ -983,7 +934,7 @@ def main():
             else:
                 st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
 
-        # ------------------ TAB 3 & 4: CHỈ HIỂN THỊ VỚI ADMIN ------------------
+        # ------------------ TAB 3: NHÂN SỰ (ADMIN) ------------------
         if st.session_state["role"] == "Quản trị viên (Admin)":
             with rendered_tabs[2]:
                 st.markdown("### 📂 Quản Lý Danh Sách Nhân Sự TTTM")
@@ -992,6 +943,7 @@ def main():
                     "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
                 )
 
+            # ------------------ TAB 4: QUẢN TRỊ USER (ADMIN) ------------------
             with rendered_tabs[3]:
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
                 st.write("")
@@ -1006,7 +958,6 @@ def main():
                 st.write("---")
 
                 df_users = load_users()
-
                 col_u1, col_u2 = st.columns(2, gap="large")
 
                 with col_u1:
@@ -1067,6 +1018,130 @@ def main():
                                 save_users(df_users)
                                 st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công (đã đồng bộ Cloud).")
                                 st.rerun()
+
+            # ------------------ TAB 5: BÁO CÁO CHUYÊN SÂU (ADMIN) ------------------
+            with rendered_tabs[4]:
+                st.markdown("### 📈 Dashboard Phân Tích & Báo Cáo Chuyên Sâu")
+                st.write("")
+
+                if not os.path.exists(ATTENDANCE_FILE) or not os.path.exists(TITLES_FILE) or not os.path.exists(EXCEL_FILE):
+                    st.info("ℹ️ Chưa đủ dữ liệu từ các file (Điểm danh, Tiêu đề, Nhân sự) để tổng hợp báo cáo.")
+                else:
+                    df_att = pd.read_excel(ATTENDANCE_FILE)
+                    df_titles = pd.read_excel(TITLES_FILE)
+                    df_nhansu = pd.read_excel(EXCEL_FILE)
+
+                    if "Nội dung Nghị quyết" in df_att.columns:
+                        df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+
+                    total_events = len(df_titles)
+                    total_staff = len(df_nhansu)
+                    total_attendance_records = len(df_att)
+
+                    # A. PHẦN TỔNG QUAN (TOP WIDGETS - KPI)
+                    col_kpi1, col_kpi2, col_kpi3 = st.columns(3, gap="medium")
+                    
+                    with col_kpi1:
+                        st.metric(label="📋 Tổng Số Lượt Điểm Danh", value=f"{total_attendance_records} lượt")
+
+                    with col_kpi2:
+                        max_possible_attendance = total_staff * total_events if (total_staff > 0 and total_events > 0) else 1
+                        avg_attendance_rate = (total_attendance_records / max_possible_attendance) * 100
+                        if avg_attendance_rate > 100: 
+                            avg_attendance_rate = 100.0
+                        st.metric(label="📊 Tỉ Lệ Chuyên Cần Trung Bình", value=f"{avg_attendance_rate:.1f}%")
+
+                    with col_kpi3:
+                        latest_event = df_titles.iloc[-1]["Tên Tiêu đề"] if not df_titles.empty else "Chưa có"
+                        latest_count = len(df_att[df_att["Nội dung"] == latest_event]) if not df_titles.empty else 0
+                        latest_rate = (latest_count / total_staff * 100) if total_staff > 0 else 0
+                        st.metric(label="🔥 Sự Kiện Gần Nhất", value=f"{latest_rate:.1f}%", help=f"Sự kiện: {latest_event} ({latest_count}/{total_staff} nhân sự)")
+
+                    st.write("---")
+
+                    # B. PHẦN BIỂU ĐỒ (VISUALIZATIONS - PLOTLY)
+                    col_chart1, col_chart2 = st.columns(2, gap="large")
+
+                    with col_chart1:
+                        st.markdown("#### 🏢 Tỉ Lệ Chuyên Cần Theo Phòng Ban")
+                        if not df_att.empty and not df_nhansu.empty:
+                            df_dept_att = df_att.groupby("Phòng ban")["Họ tên"].count().reset_index()
+                            df_dept_att = df_dept_att.rename(columns={"Họ tên": "Số lượt tham gia"})
+                            
+                            df_dept_total = df_nhansu.groupby("Phòng ban")["Họ tên"].count().reset_index()
+                            df_dept_total = df_dept_total.rename(columns={"Họ tên": "Tổng nhân sự"})
+
+                            df_merged_dept = pd.merge(df_dept_total, df_dept_att, on="Phòng ban", how="left").fillna(0)
+                            max_dept_slots = total_events if total_events > 0 else 1
+                            df_merged_dept["Tỉ lệ (%)"] = (df_merged_dept["Số lượt tham gia"] / (df_merged_dept["Tổng nhân sự"] * max_dept_slots) * 100).round(1)
+
+                            fig_bar = px.bar(
+                                df_merged_dept, 
+                                x="Phòng ban", 
+                                y="Tỉ lệ (%)", 
+                                text="Tỉ lệ (%)",
+                                color="Phòng ban",
+                                title="Hiệu suất tham gia theo phòng ban"
+                            )
+                            fig_bar.update_traces(texttemplate='%{text}%', textposition='outside')
+                            fig_bar.update_layout(xaxis_title="Phòng Ban", yaxis_title="Tỉ Lệ Tham Gia (%)", showlegend=False)
+                            st.plotly_chart(fig_bar, use_container_width=True)
+                        else:
+                            st.info("ℹ️ Chưa đủ dữ liệu để vẽ biểu đồ phòng ban.")
+
+                    with col_chart2:
+                        st.markdown("#### 📈 Xu Hướng Điểm Danh Theo Sự Kiện")
+                        if not df_titles.empty and not df_att.empty:
+                            event_counts = []
+                            for idx, row in df_titles.iterrows():
+                                ev_title = row["Tên Tiêu đề"]
+                                count = len(df_att[df_att["Nội dung"] == ev_title])
+                                event_counts.append({"Sự kiện": ev_title, "Ngày học": row["Ngày học"], "Số người tham gia": count})
+                            
+                            df_trend = pd.DataFrame(event_counts)
+                            
+                            fig_line = px.line(
+                                df_trend, 
+                                x="Sự kiện", 
+                                y="Số người tham gia", 
+                                markers=True,
+                                title="Biểu đồ biến động số lượng tham gia sự kiện"
+                            )
+                            fig_line.update_layout(xaxis_title="Tên Sự Kiện / Nghị Quyết", yaxis_title="Số Lượng Người Tham Gia")
+                            st.plotly_chart(fig_line, use_container_width=True)
+                        else:
+                            st.info("ℹ️ Chưa đủ dữ liệu xu hướng.")
+
+                    st.write("---")
+
+                    # C. PHẦN CẢNH BÁO & VINH DANH (ALERTS & LISTS)
+                    st.markdown("### 📋 Phân Loại Nhân Sự Theo Mức Độ Tham Gia")
+
+                    if total_events > 0 and not df_nhansu.empty:
+                        attendance_counts = df_att.groupby("Họ tên").size().reset_index(name="Số buổi tham gia")
+                        df_summary = pd.merge(df_nhansu, attendance_counts, on="Họ tên", how="left").fillna({"Số buổi tham gia": 0})
+                        df_summary["Số buổi vắng"] = total_events - df_summary["Số buổi tham gia"]
+                        df_summary["Tỉ lệ tham gia (%)"] = ((df_summary["Số buổi tham gia"] / total_events) * 100).round(1)
+
+                        col_tab1, col_tab2 = st.columns(2, gap="large")
+
+                        with col_tab1:
+                            st.markdown("#### ⚠️ Danh Sách Cần Lưu Ý (Vắng nhiều < 50%)")
+                            df_warning = df_summary[df_summary["Tỉ lệ tham gia (%)"] < 50.0][["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi vắng", "Tỉ lệ tham gia (%)"]]
+                            if not df_warning.empty:
+                                st.dataframe(df_warning, use_container_width=True, hide_index=True)
+                            else:
+                                st.success("✨ Tuyệt vời! Không có nhân sự nào vắng quá 50% số sự kiện.")
+
+                        with col_tab2:
+                            st.markdown("#### 🌟 Gương Mẫu (Tham gia 100% sự kiện)")
+                            df_exemplary = df_summary[df_summary["Số buổi tham gia"] == total_events][["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi tham gia"]]
+                            if not df_exemplary.empty:
+                                st.dataframe(df_exemplary, use_container_width=True, hide_index=True)
+                            else:
+                                st.info("ℹ️ Hiện chưa có nhân sự nào đạt mốc tham gia 100% tất cả các sự kiện.")
+                    else:
+                        st.info("ℹ️ Cần có ít nhất 1 sự kiện và danh sách nhân sự để phân tích chi tiết.")
 
 
 if __name__ == "__main__":
