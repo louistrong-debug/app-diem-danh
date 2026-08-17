@@ -170,15 +170,26 @@ def load_data():
 def load_titles():
     if os.path.exists(TITLES_FILE):
         try:
-            return pd.read_excel(TITLES_FILE)
+            df_t = pd.read_excel(TITLES_FILE)
+            if "Tên Tiêu đề" in df_t.columns and "Sự kiện" not in df_t.columns:
+                df_t = df_t.rename(columns={"Tên Tiêu đề": "Sự kiện"})
+            if "Ngày học" in df_t.columns and "Ngày tổ chức" not in df_t.columns:
+                df_t = df_t.rename(columns={"Ngày học": "Ngày tổ chức"})
+            return df_t
         except Exception:
-            return pd.DataFrame(columns=["Tên Tiêu đề", "Ngày học"])
+            return pd.DataFrame(columns=["Sự kiện", "Ngày tổ chức"])
     else:
-        return pd.DataFrame(columns=["Tên Tiêu đề", "Ngày học"])
+        return pd.DataFrame(columns=["Sự kiện", "Ngày tổ chức"])
 
 
 def save_titles(df):
-    df.to_excel(TITLES_FILE, index=False)
+    df_save = df.copy()
+    if "Sự kiện" in df_save.columns:
+        df_save = df_save.rename(columns={"Sự kiện": "Tên Tiêu đề"})
+    if "Ngày tổ chức" in df_save.columns:
+        df_save = df_save.rename(columns={"Ngày tổ chức": "Ngày học"})
+    df_save.to_excel(TITLES_FILE, index=False)
+    
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_dict = dict(st.secrets["gcp_service_account"])
@@ -341,16 +352,16 @@ def success_attendance_dialog(selected_name, nq_title, formatted_time):
         st.rerun()
 
 
-@st.dialog("⚠️ Xác Nhận Xóa Tiêu Đề")
+@st.dialog("⚠️ Xác Nhận Xóa Sự Kiện")
 def delete_confirmation_dialog(target_title):
-    st.markdown(f"Bạn có chắc chắn muốn xóa tiêu đề **'{target_title}'** này không?")
+    st.markdown(f"Bạn có chắc chắn muốn xóa sự kiện **'{target_title}'** này không?")
     st.write("")
     
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete"):
         df_titles = load_titles()
-        df_titles = df_titles[df_titles["Tên Tiêu đề"] != target_title]
+        df_titles = df_titles[df_titles["Sự kiện"] != target_title]
         save_titles(df_titles)
-        st.success(f"Đã xóa thành công tiêu đề '{target_title}' (đã đồng bộ Cloud).")
+        st.success(f"Đã xóa thành công sự kiện '{target_title}' (đã đồng bộ Cloud).")
         st.rerun()
         
     st.write("")
@@ -471,7 +482,7 @@ def main():
 
     # ========================== GIAO DIỆN ĐIỂM DANH QUA QR ==========================
     if is_checkin_page:
-        nq_title = query_params.get("nq", "Học nghị quyết")
+        nq_title = query_params.get("nq", "Họp chi bộ")
         nq_date = query_params.get("date", "")
         exp_timestamp = query_params.get("exp", "")
 
@@ -488,7 +499,7 @@ def main():
         st.markdown(f"""
             <div style="background-color: #FFFFFF; padding: 35px; border-radius: 16px; text-align: center; margin: 0 auto; max-width: 700px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #E2E8F0;">
                 <h2 style="color: #0F172A; margin: 0; font-size: 30px !important;">📌 {nq_title}</h2>
-                <p style="color: #475569; font-size: 22px !important; margin-top: 15px; font-weight: 600;">📅 Ngày học: {nq_date}</p>
+                <p style="color: #475569; font-size: 22px !important; margin-top: 15px; font-weight: 600;">📅 Ngày tổ chức: {nq_date}</p>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid #E2E8F0;">
             </div>
         """, unsafe_allow_html=True)
@@ -654,25 +665,25 @@ def main():
 
                 col_lbl1, col_input1 = st.columns([1.5, 8.5], gap="small")
                 with col_lbl1:
-                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Tiêu đề:</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Sự kiện:</p>", unsafe_allow_html=True)
                 with col_input1:
-                    nq_title_input = st.text_input("Nhập tiêu đề", value=st.session_state["selected_title_input"], placeholder="Nhập tên tiêu đề sự kiện / nghị quyết...", label_visibility="collapsed")
+                    nq_title_input = st.text_input("Nhập sự kiện", value=st.session_state["selected_title_input"], placeholder="Nhập tên buổi họp, kết nạp Đảng, sự kiện...", label_visibility="collapsed")
 
                 st.write("")
 
                 col_lbl2, col_date2 = st.columns([1.5, 8.5], gap="small")
                 with col_lbl2:
-                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày:</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày tổ chức:</p>", unsafe_allow_html=True)
                 with col_date2:
-                    nq_date_input = st.date_input("Chọn ngày/tháng/năm", value=st.session_state["selected_date_input"], label_visibility="collapsed", format="DD/MM/YYYY")
+                    nq_date_input = st.date_input("Chọn ngày", value=st.session_state["selected_date_input"], label_visibility="collapsed", format="DD/MM/YYYY")
 
                 formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
                 st.write("")
-                st.markdown("#### 📋 Danh Sách Tiêu Đề Đã Thiết Lập")
+                st.markdown("#### 📋 Danh Sách Sự Kiện Đã Thiết Lập")
 
                 if df_titles.empty:
-                    st.info("ℹ️ Chưa có tiêu đề nào được thêm.")
+                    st.info("ℹ️ Chưa có sự kiện nào được thêm.")
                 else:
                     df_titles_show = df_titles.copy().reset_index(drop=True)
                     df_titles_show.insert(0, "STT", range(1, len(df_titles_show) + 1))
@@ -691,8 +702,8 @@ def main():
                     if selected_rows:
                         selected_idx = selected_rows[0]
                         if selected_idx < len(df_titles):
-                            new_title = str(df_titles.iloc[selected_idx]["Tên Tiêu đề"])
-                            raw_date = str(df_titles.iloc[selected_idx]["Ngày học"])
+                            new_title = str(df_titles.iloc[selected_idx]["Sự kiện"])
+                            raw_date = str(df_titles.iloc[selected_idx]["Ngày tổ chức"])
                             try:
                                 new_date = datetime.strptime(raw_date.strip(), "%d/%m/%Y").date()
                             except Exception:
@@ -709,9 +720,9 @@ def main():
                 if create_qr_clicked:
                     title_input = nq_title_input.strip()
                     if not title_input:
-                        st.warning("⚠️ Vui lòng nhập tiêu đề!")
+                        st.warning("⚠️ Vui lòng nhập tên sự kiện!")
                     elif nq_date_input < current_vn_date:
-                        st.error(f"🚨 Tiêu đề '{title_input}' có ngày học ({formatted_date_str}) đã nhỏ hơn ngày hiện tại ({current_vn_date.strftime('%d/%m/%Y')}). Sự kiện này đã kết thúc, không thể tạo mã QR!")
+                        st.error(f"🚨 Sự kiện '{title_input}' có ngày tổ chức ({formatted_date_str}) đã nhỏ hơn ngày hiện tại ({current_vn_date.strftime('%d/%m/%Y')}). Sự kiện này đã kết thúc, không thể tạo mã QR!")
                     else:
                         expire_time = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
                         expire_timestamp = expire_time.timestamp()
@@ -730,12 +741,11 @@ def main():
                         img.save("temp_qr.png")
 
                         df_titles_current = load_titles()
-                        if title_input in df_titles_current["Tên Tiêu đề"].values:
+                        if title_input in df_titles_current["Sự kiện"].values:
                             st.success("✨ Đã tạo mã QR mới thành công!")
                         else:
-                            new_row = pd.DataFrame([{"Tên Tiêu đề": title_input, "Ngày học": formatted_date_str}])
+                            new_row = pd.DataFrame([{"Sự kiện": title_input, "Ngày tổ chức": formatted_date_str}])
                             df_titles_current = pd.concat([df_titles_current, new_row], ignore_index=True)
-                            df_titles_current.to_excel(TITLES_FILE, index=False)
                             save_titles(df_titles_current)
                             st.success("✨ Đã tạo mã QR và đồng bộ lên Cloud thành công!")
                             st.rerun()
@@ -788,14 +798,14 @@ def main():
 
                 st.write("")
 
-                delete_title_clicked = st.button("🗑️ Xóa Tiêu đề", use_container_width=True)
+                delete_title_clicked = st.button("🗑️ Xóa Sự Kiện", use_container_width=True)
                 if delete_title_clicked:
                     selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
                     if not selected_rows:
                         st.warning("⚠️ Vui lòng nhấp chọn một hàng trong bảng danh sách bên trái để xóa!")
                     else:
                         selected_idx = selected_rows[0]
-                        target_title = df_titles.iloc[selected_idx]["Tên Tiêu đề"]
+                        target_title = df_titles.iloc[selected_idx]["Sự kiện"]
                         
                         has_transaction = False
                         if os.path.exists(ATTENDANCE_FILE):
@@ -805,7 +815,7 @@ def main():
                                 has_transaction = True
 
                         if has_transaction:
-                            st.error(f"❌ Không thể xóa tiêu đề '{target_title}' vì tiêu đề này đã có người điểm danh.")
+                            st.error(f"❌ Không thể xóa sự kiện '{target_title}' vì sự kiện này đã có người điểm danh.")
                         else:
                             delete_confirmation_dialog(target_title)
 
@@ -818,9 +828,9 @@ def main():
                     titles_excel_data = output_titles.getvalue()
 
                     st.download_button(
-                        label="📥 Tải DS Tiêu Đề (Excel)",
+                        label="📥 Tải DS Sự Kiện (Excel)",
                         data=titles_excel_data,
-                        file_name="danh_sach_tieu_de.xlsx",
+                        file_name="danh_sach_su_kien.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True,
                     )
@@ -842,7 +852,7 @@ def main():
 
                 list_nq = df_att["Nội dung"].unique().tolist()
                 selected_filter = st.selectbox(
-                    "🔍 Lọc theo nội dung:", ["Tất cả"] + list_nq
+                    "🔍 Lọc theo sự kiện:", ["Tất cả"] + list_nq
                 )
 
                 df_filtered = df_att[df_att["Nội dung"] == selected_filter].copy() if selected_filter != "Tất cả" else df_att.copy()
@@ -1037,7 +1047,7 @@ def main():
                 st.write("")
 
                 if not os.path.exists(ATTENDANCE_FILE) or not os.path.exists(TITLES_FILE) or not os.path.exists(EXCEL_FILE):
-                    st.info("ℹ️ Chưa đủ dữ liệu từ các file (Điểm danh, Tiêu đề, Nhân sự) để tổng hợp báo cáo.")
+                    st.info("ℹ️ Chưa đủ dữ liệu từ các file (Điểm danh, Sự kiện, Nhân sự) để tổng hợp báo cáo.")
                 else:
                     df_att_raw = pd.read_excel(ATTENDANCE_FILE)
                     df_titles = pd.read_excel(TITLES_FILE)
@@ -1067,7 +1077,7 @@ def main():
                         st.metric(label="📊 Tỉ Lệ Chuyên Cần Trung Bình", value=f"{avg_attendance_rate:.1f}%")
 
                     with col_kpi3:
-                        latest_event = df_titles.iloc[-1]["Tên Tiêu đề"] if not df_titles.empty else "Chưa có"
+                        latest_event = df_titles.iloc[-1]["Sự kiện"] if not df_titles.empty else "Chưa có"
                         latest_count = len(df_att[df_att["Nội dung"] == latest_event]) if not df_titles.empty else 0
                         latest_rate = (latest_count / total_staff * 100) if total_staff > 0 else 0
                         st.metric(label="🔥 Sự Kiện Gần Nhất", value=f"{latest_rate:.1f}%", help=f"Sự kiện: {latest_event} ({latest_count}/{total_staff} nhân sự)")
@@ -1109,9 +1119,9 @@ def main():
                         if not df_titles.empty and not df_att.empty:
                             event_counts = []
                             for idx, row in df_titles.iterrows():
-                                ev_title = row["Tên Tiêu đề"]
+                                ev_title = row["Sự kiện"]
                                 count = len(df_att[df_att["Nội dung"] == ev_title])
-                                event_counts.append({"Sự kiện": ev_title, "Ngày học": row["Ngày học"], "Số người tham gia": count})
+                                event_counts.append({"Sự kiện": ev_title, "Ngày tổ chức": row["Ngày tổ chức"], "Số người tham gia": count})
                             
                             df_trend = pd.DataFrame(event_counts)
                             
@@ -1122,7 +1132,7 @@ def main():
                                 markers=True,
                                 title="Biểu đồ biến động số lượng tham gia sự kiện"
                             )
-                            fig_line.update_layout(xaxis_title="Tên Sự Kiện / Nghị Quyết", yaxis_title="Số Lượng Người Tham Gia")
+                            fig_line.update_layout(xaxis_title="Tên Sự Kiện", yaxis_title="Số Lượng Người Tham Gia")
                             st.plotly_chart(fig_line, use_container_width=True)
                         else:
                             st.info("ℹ️ Chưa đủ dữ liệu xu hướng.")
@@ -1132,7 +1142,7 @@ def main():
                     # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (ĐÃ LỌC TRÙNG)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
                     if not df_titles.empty:
-                        list_all_events = df_titles["Tên Tiêu đề"].tolist()
+                        list_all_events = df_titles["Sự kiện"].tolist()
                         selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
 
                         if selected_detail_event:
