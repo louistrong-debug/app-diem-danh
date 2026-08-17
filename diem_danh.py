@@ -84,7 +84,6 @@ def sync_to_google():
             except Exception:
                 ws = spreadsheet.add_worksheet(title=sheet_key, rows="100", cols="20")
             
-            # Xóa dữ liệu cũ trên sheet trước khi cập nhật
             ws.clear()
             
             df = df.fillna("")
@@ -1114,8 +1113,74 @@ def main():
 
                     st.write("---")
 
-                    # C. PHẦN CẢNH BÁO & VINH DANH (ALERTS & LISTS)
-                    st.markdown("### 📋 Phân Loại Nhân Sự Theo Mức Độ Tham Gia")
+                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (MỚI BỔ SUNG)
+                    st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
+                    if not df_titles.empty:
+                        list_all_events = df_titles["Tên Tiêu đề"].tolist()
+                        selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
+
+                        if selected_detail_event:
+                            # Lọc dữ liệu điểm danh của riêng sự kiện được chọn
+                            df_event_att = df_att[df_att["Nội dung"] == selected_detail_event]
+                            event_attendees_count = len(df_event_att)
+                            event_rate = (event_attendees_count / total_staff * 100) if total_staff > 0 else 0
+
+                            # KPI riêng cho sự kiện
+                            col_ev1, col_ev2, col_ev3 = st.columns(3, gap="medium")
+                            with col_ev1:
+                                st.metric(label="👥 Tổng Số Người Tham Gia", value=f"{event_attendees_count} / {total_staff} nhân sự")
+                            with col_ev2:
+                                st.metric(label="📊 Tỉ Lệ Tham Gia Sự Kiện", value=f"{event_rate:.1f}%")
+                            with col_ev3:
+                                missing_count = total_staff - event_attendees_count
+                                st.metric(label="❌ Số Lượng Vắng Mặt", value=f"{missing_count} nhân sự")
+
+                            st.write("")
+
+                            # Biểu đồ phân bổ theo phòng ban cho sự kiện này
+                            col_ev_chart, col_ev_table = st.columns([1, 1.2], gap="large")
+
+                            with col_ev_chart:
+                                st.markdown(f"#### 📊 Tỉ Lệ Phòng Ban Trong Sự Kiện")
+                                if not df_event_att.empty and not df_nhansu.empty:
+                                    df_ev_dept_att = df_event_att.groupby("Phòng ban")["Họ tên"].count().reset_index()
+                                    df_ev_dept_att = df_ev_dept_att.rename(columns={"Họ tên": "Tham gia"})
+                                    df_ev_dept_total = df_nhansu.groupby("Phòng ban")["Họ tên"].count().reset_index()
+                                    df_ev_dept_total = df_ev_dept_total.rename(columns={"Họ tên": "Tổng"})
+
+                                    df_ev_merged = pd.merge(df_ev_dept_total, df_ev_dept_att, on="Phòng ban", how="left").fillna(0)
+                                    df_ev_merged["Tỉ lệ (%)"] = (df_ev_merged["Tham gia"] / df_ev_merged["Tổng"] * 100).round(1)
+
+                                    fig_ev_bar = px.bar(
+                                        df_ev_merged, 
+                                        x="Phòng ban", 
+                                        y="Tỉ lệ (%)", 
+                                        text="Tỉ lệ (%)",
+                                        color="Phòng ban",
+                                        title=f"Mức độ tham gia: {selected_detail_event}"
+                                    )
+                                    fig_ev_bar.update_traces(texttemplate='%{text}%', textposition='outside')
+                                    fig_ev_bar.update_layout(xaxis_title="Phòng Ban", yaxis_title="Tỉ Lệ (%)", showlegend=False)
+                                    st.plotly_chart(fig_ev_bar, use_container_width=True)
+                                else:
+                                    st.info("ℹ️ Chưa có dữ liệu tham gia cho sự kiện này.")
+
+                            with col_ev_table:
+                                st.markdown(f"#### ❌ Danh Sách Vắng Mặt Sự Kiện Này")
+                                if not df_nhansu.empty:
+                                    attended_names = df_event_att["Họ tên"].tolist()
+                                    df_missing_staff = df_nhansu[~df_nhansu["Họ tên"].isin(attended_names)][["STT", "Họ tên", "Phòng ban", "Chức vụ"]]
+                                    if not df_missing_staff.empty:
+                                        st.dataframe(df_missing_staff, use_container_width=True, height=280, hide_index=True)
+                                    else:
+                                        st.success("🎉 Tuyệt vời! Sự kiện này không có ai vắng mặt.")
+                                else:
+                                    st.info("ℹ️ Không có dữ liệu nhân sự.")
+
+                    st.write("---")
+
+                    # D. PHẦN CẢNH BÁO & VINH DANH TỔNG QUAN
+                    st.markdown("### 📋 Phân Loại Nhân Sự Theo Mức Độ Tham Gia Tổng Thể")
 
                     if total_events > 0 and not df_nhansu.empty:
                         attendance_counts = df_att.groupby("Họ tên").size().reset_index(name="Số buổi tham gia")
