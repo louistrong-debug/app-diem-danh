@@ -317,6 +317,12 @@ def apply_custom_css():
                 margin-top: -10px !important;
                 margin-bottom: 5px !important;
             }
+            
+            /* TỐI ƯU KHOẢNG CÁCH GỌN GÀNG (SÁT SÁT LẠI) */
+            div[data-testid="stVerticalBlock"] {
+                gap: 0.5rem !important;
+            }
+            
             div[data-testid="stColumn"] div[data-testid="stButton"] > button,
             div[data-testid="stDownloadButton"] > button {
                 width: 100% !important;
@@ -665,7 +671,6 @@ def main():
 
             with col_left:
                 st.markdown("### 🛠️ Thiết Lập Mã QR Điểm Danh")
-                st.write("")
 
                 col_lbl1, col_input1 = st.columns([2.2, 7.8], gap="small")
                 with col_lbl1:
@@ -673,9 +678,6 @@ def main():
                 with col_input1:
                     nq_title_input = st.text_input("Nhập sự kiện", value=st.session_state["selected_title_input"], placeholder="Nhập tên buổi họp, kết nạp Đảng, sự kiện...", label_visibility="collapsed")
 
-                st.write("")
-
-                # ĐÃ MỞ RỘNG CỘT LABEL THÀNH [2.2, 7.8] ĐỂ "Ngày tổ chức" NẰM TRÊN 1 HÀNG
                 col_lbl2, col_date2 = st.columns([2.2, 7.8], gap="small")
                 with col_lbl2:
                     st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày tổ chức:</p>", unsafe_allow_html=True)
@@ -684,7 +686,6 @@ def main():
 
                 formatted_date_str = nq_date_input.strftime("%d/%m/%Y")
 
-                st.write("")
                 st.markdown("#### 📋 Danh Sách Sự Kiện Đã Thiết Lập")
 
                 if df_titles.empty or "Sự kiện" not in df_titles.columns:
@@ -755,8 +756,6 @@ def main():
                             st.success("✨ Đã tạo mã QR và đồng bộ lên Cloud thành công!")
                             st.rerun()
 
-                st.write("")
-
                 if "temp_qr.png" in os.listdir() and "expire_timestamp" in st.session_state:
                     st.image("temp_qr.png", caption=st.session_state.get("nq_title", ""), width=280)
                     
@@ -801,8 +800,6 @@ def main():
                 else:
                     st.info("ℹ️ Chưa có mã QR nào được tạo.")
 
-                st.write("")
-
                 delete_title_clicked = st.button("🗑️ Xóa Sự Kiện", use_container_width=True)
                 if delete_title_clicked:
                     selected_rows = st.session_state.get("titles_dataframe", {}).get("selection", {}).get("rows", [])
@@ -823,8 +820,6 @@ def main():
                             st.error(f"❌ Không thể xóa sự kiện '{target_title}' vì sự kiện này đã có người điểm danh.")
                         else:
                             delete_confirmation_dialog(target_title)
-
-                st.write("")
 
                 if not df_titles.empty:
                     output_titles = io.BytesIO()
@@ -862,7 +857,6 @@ def main():
 
                 df_filtered = df_att[df_att["Nội dung"] == selected_filter].copy() if selected_filter != "Tất cả" else df_att.copy()
 
-                st.write("")
                 st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
                 
                 if not df_filtered.empty:
@@ -899,7 +893,7 @@ def main():
                             else:
                                 st.info("ℹ️ Không có ảnh xác thực hoặc định dạng cũ.")
 
-                st.write("---")
+                st.markdown("---")
                 col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
                 
                 with col_btn1:
@@ -971,7 +965,6 @@ def main():
             # ------------------ TAB 4: QUẢN TRỊ USER (ADMIN) ------------------
             with rendered_tabs[3]:
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
-                st.write("")
 
                 if st.button("🔄 Đồng bộ dữ liệu thủ công ngay", use_container_width=True):
                     with st.spinner("Đang kết nối và đẩy dữ liệu lên Google Sheets..."):
@@ -980,7 +973,7 @@ def main():
                         else:
                             st.error("❌ Lỗi đồng bộ Google Sheets.")
                 
-                st.write("---")
+                st.markdown("---")
 
                 df_users = load_users()
                 col_u1, col_u2 = st.columns(2, gap="large")
@@ -1030,7 +1023,6 @@ def main():
                     df_users_show.insert(0, "STT", range(1, len(df_users_show) + 1))
                     st.dataframe(df_users_show, width="stretch", height=320, hide_index=True)
 
-                    st.write("")
                     st.markdown("#### 🗑️ Xóa Tài Khoản")
                     with st.form("form_delete_user"):
                         del_user = st.selectbox("Chọn tài khoản cần xóa:", ["-- Chọn tài khoản --"] + df_users["Tên đăng nhập"].tolist(), key="del_selectbox")
@@ -1049,7 +1041,6 @@ def main():
             # ------------------ TAB 5: BÁO CÁO CHUYÊN SÂU (ADMIN) ------------------
             with rendered_tabs[4]:
                 st.markdown("### 📈 Dashboard Phân Tích & Báo Cáo Chuyên Sâu")
-                st.write("")
 
                 if not os.path.exists(ATTENDANCE_FILE) or not os.path.exists(TITLES_FILE) or not os.path.exists(EXCEL_FILE):
                     st.info("ℹ️ Chưa đủ dữ liệu từ các file (Điểm danh, Sự kiện, Nhân sự) để tổng hợp báo cáo.")
@@ -1087,7 +1078,7 @@ def main():
                         latest_rate = (latest_count / total_staff * 100) if total_staff > 0 else 0
                         st.metric(label="🔥 Sự Kiện Gần Nhất", value=f"{latest_rate:.1f}%", help=f"Sự kiện: {latest_event} ({latest_count}/{total_staff} nhân sự)")
 
-                    st.write("---")
+                    st.markdown("---")
 
                     # B. PHẦN BIỂU ĐỒ (VISUALIZATIONS - PLOTLY)
                     col_chart1, col_chart2 = st.columns(2, gap="large")
@@ -1142,7 +1133,7 @@ def main():
                         else:
                             st.info("ℹ️ Chưa đủ dữ liệu xu hướng.")
 
-                    st.write("---")
+                    st.markdown("---")
 
                     # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (ĐÃ LỌC TRÙNG)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
@@ -1163,8 +1154,6 @@ def main():
                             with col_ev3:
                                 missing_count = total_staff - event_attendees_count
                                 st.metric(label="❌ Số Lượng Vắng Mặt", value=f"{missing_count} nhân sự")
-
-                            st.write("")
 
                             col_ev_chart, col_ev_table = st.columns([1, 1.2], gap="large")
 
@@ -1208,7 +1197,7 @@ def main():
                                 else:
                                     st.info("ℹ️ Không có dữ liệu nhân sự.")
 
-                    st.write("---")
+                    st.markdown("---")
 
                     # D. PHẦN TỔNG HỢP TOÀN BỘ NHÂN SỰ
                     st.markdown("### 📋 Bảng Tổng Hợp Tình Hình Tham Gia Sinh Hoạt")
