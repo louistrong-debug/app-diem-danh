@@ -1038,7 +1038,7 @@ def main():
 
                     total_events = len(df_titles)
                     total_staff = len(df_nhansu)
-                    total_attendance_records = len(df_att) # Tổng số lượt duy nhất sau khi lọc trùng
+                    total_attendance_records = len(df_att)
 
                     # A. PHẦN TỔNG QUAN (TOP WIDGETS - KPI)
                     col_kpi1, col_kpi2, col_kpi3 = st.columns(3, gap="medium")
@@ -1123,12 +1123,10 @@ def main():
                         selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
 
                         if selected_detail_event:
-                            # Lọc dữ liệu điểm danh độc nhất của riêng sự kiện được chọn
                             df_event_att = df_att[df_att["Nội dung"] == selected_detail_event]
                             event_attendees_count = len(df_event_att)
                             event_rate = (event_attendees_count / total_staff * 100) if total_staff > 0 else 0
 
-                            # KPI riêng cho sự kiện
                             col_ev1, col_ev2, col_ev3 = st.columns(3, gap="medium")
                             with col_ev1:
                                 st.metric(label="👥 Tổng Số Người Tham Gia (Duy nhất)", value=f"{event_attendees_count} / {total_staff} nhân sự")
@@ -1140,7 +1138,6 @@ def main():
 
                             st.write("")
 
-                            # Biểu đồ phân bổ theo phòng ban cho sự kiện này
                             col_ev_chart, col_ev_table = st.columns([1, 1.2], gap="large")
 
                             with col_ev_chart:
@@ -1172,8 +1169,11 @@ def main():
                                 st.markdown(f"#### ❌ Danh Sách Vắng Mặt Sự Kiện Này")
                                 if not df_nhansu.empty:
                                     attended_names = df_event_att["Họ tên"].tolist()
-                                    df_missing_staff = df_nhansu[~df_nhansu["Họ tên"].isin(attended_names)][["STT", "Họ tên", "Phòng ban", "Chức vụ"]]
+                                    df_missing_staff = df_nhansu[~df_nhansu["Họ tên"].isin(attended_names)].copy()
                                     if not df_missing_staff.empty:
+                                        df_missing_staff = df_missing_staff.reset_index(drop=True)
+                                        df_missing_staff["STT"] = range(1, len(df_missing_staff) + 1)
+                                        df_missing_staff = df_missing_staff[["STT", "Họ tên", "Phòng ban", "Chức vụ"]]
                                         st.dataframe(df_missing_staff, use_container_width=True, height=280, hide_index=True)
                                     else:
                                         st.success("🎉 Tuyệt vời! Sự kiện này không có ai vắng mặt.")
@@ -1182,7 +1182,7 @@ def main():
 
                     st.write("---")
 
-                    # D. PHẦN CẢNH BÁO & VINH DANH TỔNG QUAN (DỰA TRÊN DỮ LIỆU ĐÃ LỌC TRÙNG)
+                    # D. PHẦN CẢNH BÁO & VINH DANH TỔNG QUAN
                     st.markdown("### 📋 Phân Loại Nhân Sự Theo Mức Độ Tham Gia Tổng Thể")
 
                     if total_events > 0 and not df_nhansu.empty:
@@ -1195,16 +1195,22 @@ def main():
 
                         with col_tab1:
                             st.markdown("#### ⚠️ Danh Sách Cần Lưu Ý (Vắng nhiều < 50%)")
-                            df_warning = df_summary[df_summary["Tỉ lệ tham gia (%)"] < 50.0][["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi vắng", "Tỉ lệ tham gia (%)"]]
+                            df_warning = df_summary[df_summary["Tỉ lệ tham gia (%)"] < 50.0].copy()
                             if not df_warning.empty:
+                                df_warning = df_warning.reset_index(drop=True)
+                                df_warning["STT"] = range(1, len(df_warning) + 1)
+                                df_warning = df_warning[["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi vắng", "Tỉ lệ tham gia (%)"]]
                                 st.dataframe(df_warning, use_container_width=True, hide_index=True)
                             else:
                                 st.success("✨ Tuyệt vời! Không có nhân sự nào vắng quá 50% số sự kiện.")
 
                         with col_tab2:
                             st.markdown("#### 🌟 Gương Mẫu (Tham gia 100% sự kiện)")
-                            df_exemplary = df_summary[df_summary["Số buổi tham gia"] == total_events][["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi tham gia"]]
+                            df_exemplary = df_summary[df_summary["Số buổi tham gia"] == total_events].copy()
                             if not df_exemplary.empty:
+                                df_exemplary = df_exemplary.reset_index(drop=True)
+                                df_exemplary["STT"] = range(1, len(df_exemplary) + 1)
+                                df_exemplary = df_exemplary[["STT", "Họ tên", "Phòng ban", "Chức vụ", "Số buổi tham gia"]]
                                 st.dataframe(df_exemplary, use_container_width=True, hide_index=True)
                             else:
                                 st.info("ℹ️ Hiện chưa có nhân sự nào đạt mốc tham gia 100% tất cả các sự kiện.")
