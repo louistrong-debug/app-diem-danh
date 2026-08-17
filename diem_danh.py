@@ -667,7 +667,7 @@ def main():
                 st.markdown("### 🛠️ Thiết Lập Mã QR Điểm Danh")
                 st.write("")
 
-                col_lbl1, col_input1 = st.columns([1.5, 8.5], gap="small")
+                col_lbl1, col_input1 = st.columns([2.2, 7.8], gap="small")
                 with col_lbl1:
                     st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Sự kiện:</p>", unsafe_allow_html=True)
                 with col_input1:
@@ -675,7 +675,8 @@ def main():
 
                 st.write("")
 
-                col_lbl2, col_date2 = st.columns([1.5, 8.5], gap="small")
+                # ĐÃ MỞ RỘNG CỘT LABEL THÀNH [2.2, 7.8] ĐỂ "Ngày tổ chức" NẰM TRÊN 1 HÀNG
+                col_lbl2, col_date2 = st.columns([2.2, 7.8], gap="small")
                 with col_lbl2:
                     st.markdown("<p style='margin-top: 8px; font-size: 17px; font-weight: 700; color: #1E293B;'>Ngày tổ chức:</p>", unsafe_allow_html=True)
                 with col_date2:
@@ -1209,7 +1210,7 @@ def main():
 
                     st.write("---")
 
-                    # D. PHẦN TỔNG HỢP TOÀN BỘ NHÂN SỰ (THAY THẾ PHẢN CẢNH BÁO CŨ)
+                    # D. PHẦN TỔNG HỢP TOÀN BỘ NHÂN SỰ
                     st.markdown("### 📋 Bảng Tổng Hợp Tình Hình Tham Gia Sinh Hoạt")
 
                     if total_events > 0 and not df_nhansu.empty:
