@@ -674,13 +674,17 @@ def main():
                 if df_titles.empty:
                     st.info("ℹ️ Chưa có tiêu đề nào được thêm.")
                 else:
+                    df_titles_show = df_titles.copy().reset_index(drop=True)
+                    df_titles_show.insert(0, "STT", range(1, len(df_titles_show) + 1))
+                    
                     event = st.dataframe(
-                        df_titles, 
+                        df_titles_show, 
                         width="stretch", 
                         height=200, 
                         selection_mode="single-row", 
                         on_select="rerun",
-                        key="titles_dataframe"
+                        key="titles_dataframe",
+                        hide_index=True
                     )
                     
                     selected_rows = event.get("selection", {}).get("rows", [])
@@ -841,18 +845,23 @@ def main():
                     "🔍 Lọc theo nội dung:", ["Tất cả"] + list_nq
                 )
 
-                df_filtered = df_att[df_att["Nội dung"] == selected_filter] if selected_filter != "Tất cả" else df_att
+                df_filtered = df_att[df_att["Nội dung"] == selected_filter].copy() if selected_filter != "Tất cả" else df_att.copy()
 
                 st.write("")
                 st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
                 
+                if not df_filtered.empty:
+                    df_filtered = df_filtered.reset_index(drop=True)
+                    df_filtered.insert(0, "STT", range(1, len(df_filtered) + 1))
+
                 event_att = st.dataframe(
                     df_filtered, 
                     width="stretch", 
                     height=280, 
                     selection_mode="single-row", 
                     on_select="rerun",
-                    key="attendance_dataframe"
+                    key="attendance_dataframe",
+                    hide_index=True
                 )
 
                 selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
@@ -937,7 +946,9 @@ def main():
         if st.session_state["role"] == "Quản trị viên (Admin)":
             with rendered_tabs[2]:
                 st.markdown("### 📂 Quản Lý Danh Sách Nhân Sự TTTM")
-                st.dataframe(df_nhansu, width="stretch", height=450)
+                df_nhansu_show = df_nhansu.copy().reset_index(drop=True)
+                df_nhansu_show["STT"] = range(1, len(df_nhansu_show) + 1)
+                st.dataframe(df_nhansu_show[["STT", "Họ tên", "Phòng ban", "Chức vụ"]], width="stretch", height=450, hide_index=True)
                 st.warning(
                     "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
                 )
@@ -1000,7 +1011,9 @@ def main():
 
                 with col_u2:
                     st.markdown("#### 👥 Danh Sách Tài Khoản Hiện Tại")
-                    st.dataframe(df_users, width="stretch", height=320)
+                    df_users_show = df_users.copy().reset_index(drop=True)
+                    df_users_show.insert(0, "STT", range(1, len(df_users_show) + 1))
+                    st.dataframe(df_users_show, width="stretch", height=320, hide_index=True)
 
                     st.write("")
                     st.markdown("#### 🗑️ Xóa Tài Khoản")
