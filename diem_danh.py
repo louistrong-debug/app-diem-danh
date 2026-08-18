@@ -1038,11 +1038,44 @@ def main():
                     st.info("ℹ️ Chưa đủ dữ liệu từ các file (Điểm danh, Sự kiện, Nhân sự) để tổng hợp báo cáo.")
                 else:
                     df_att_raw = pd.read_excel(ATTENDANCE_FILE)
-                    df_titles = pd.read_excel(TITLES_FILE)
+                    df_titles_raw = pd.read_excel(TITLES_FILE)
                     df_nhansu = pd.read_excel(EXCEL_FILE)
 
                     if "Nội dung Nghị quyết" in df_att_raw.columns:
                         df_att_raw = df_att_raw.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                    if "Tên Tiêu đề" in df_titles_raw.columns and "Sự kiện" not in df_titles_raw.columns:
+                        df_titles_raw = df_titles_raw.rename(columns={"Tên Tiêu đề": "Sự kiện"})
+                    if "Ngày học" in df_titles_raw.columns and "Ngày tổ chức" not in df_titles_raw.columns:
+                        df_titles_raw = df_titles_raw.rename(columns={"Ngày học": "Ngày tổ chức"})
+
+                    # BƯỚC 1: LỌC DANH SÁCH SỰ KIỆN THEO KHOẢNG THỜI GIAN CHUNG (TỪ THÁNG/NĂM ĐẾN THÁNG/NĂM)
+                    df_titles_filter = df_titles_raw.copy()
+                    df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
+
+                    col_f1, col_f2 = st.columns(2, gap="medium")
+                    with col_f1:
+                        from_input = st.text_input("📅 Từ tháng/năm (MM/YYYY):", value="01/2026", placeholder="VD: 08/2026", key="dash_from_my", label_visibility="visible")
+                    with col_f2:
+                        to_input = st.text_input("📅 Đến tháng/năm (MM/YYYY):", value="12/2026", placeholder="VD: 12/2026", key="dash_to_my", label_visibility="visible")
+
+                    def parse_custom_my(my_str):
+                        try:
+                            parts = my_str.strip().split("/")
+                            if len(parts) == 2:
+                                return datetime(int(parts[1]), int(parts[0]), 1)
+                        except:
+                            pass
+                        return datetime.min
+
+                    from_date = parse_custom_my(from_input)
+                    to_date = parse_custom_my(to_input)
+
+                    mask = df_titles_filter["_dt"].apply(lambda d: from_date <= datetime(d.year, d.month, 1) <= to_date if pd.notnull(d) else False)
+                    df_titles = df_titles_filter[mask].copy()
+
+                    # LỌC DỮ LIỆU ĐIỂM DANH CHỈ THUỘC CÁC SỰ KIỆN TRONG KHOẢNG THỜI GIAN ĐÓ
+                    valid_events = df_titles["Sự kiện"].tolist()
+                    df_att_raw = df_att_raw[df_att_raw["Nội dung"].isin(valid_events)].copy()
 
                     # LỌC BỎ TRÙNG LẶP: Nếu 1 người điểm danh nhiều lần trong cùng 1 sự kiện, chỉ giữ lại 1 lần duy nhất
                     df_att = df_att_raw.drop_duplicates(subset=["Nội dung", "Họ tên"]).copy()
@@ -1050,6 +1083,8 @@ def main():
                     total_events = len(df_titles)
                     total_staff = len(df_nhansu)
                     total_attendance_records = len(df_att)
+
+                    st.markdown("---")
 
                     # A. PHẦN TỔNG QUAN (TOP WIDGETS - KPI)
                     col_kpi1, col_kpi2, col_kpi3 = st.columns(3, gap="medium")
@@ -1100,11 +1135,11 @@ def main():
                             fig_bar.update_layout(xaxis_title="Phòng Ban", yaxis_title="Tỉ Lệ Tham Gia (%)", showlegend=False)
                             st.plotly_chart(fig_bar, use_container_width=True)
                         else:
-                            st.info("ℹ️ Chưa đủ dữ liệu để vẽ biểu đồ phòng ban.")
+                            st.info("ℹ️ Chưa đủ dữ liệu trong khoảng thời gian này để vẽ biểu đồ phòng ban.")
 
                     with col_chart2:
                         st.markdown("#### 📈 Xu Hướng Điểm Danh Theo Sự Kiện")
-                        if not df_titles.empty and not df_att.empty and "Sự kiện" in df_titles.columns:
+                        if not df_titles.empty and "Sự kiện" in df_titles.columns:
                             event_counts = []
                             for idx, row in df_titles.iterrows():
                                 ev_title = row["Sự kiện"]
@@ -1123,38 +1158,14 @@ def main():
                             fig_line.update_layout(xaxis_title="Tên Sự Kiện", yaxis_title="Số Lượng Người Tham Gia")
                             st.plotly_chart(fig_line, use_container_width=True)
                         else:
-                            st.info("ℹ️ Chưa đủ dữ liệu xu hướng.")
+                            st.info("ℹ️ Chưa đủ dữ liệu xu hướng trong khoảng thời gian này.")
 
                     st.markdown("---")
 
-                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (BỘ LỌC GÕ THÁNG/NĂM CÓ LABEL)
+                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
-                    if not df_titles.empty and "Sự kiện" in df_titles.columns and "Ngày tổ chức" in df_titles.columns:
-                        df_titles_filter = df_titles.copy()
-                        df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
-                        
-                        col_f1, col_f2 = st.columns(2, gap="medium")
-                        with col_f1:
-                            from_input = st.text_input("📅 Từ tháng/năm (MM/YYYY):", value="01/2026", placeholder="VD: 08/2026", key="input_from_my", label_visibility="visible")
-                        with col_f2:
-                            to_input = st.text_input("📅 Đến tháng/năm (MM/YYYY):", value="12/2026", placeholder="VD: 12/2026", key="input_to_my", label_visibility="visible")
-                        
-                        def parse_custom_my(my_str):
-                            try:
-                                parts = my_str.strip().split("/")
-                                if len(parts) == 2:
-                                    return datetime(int(parts[1]), int(parts[0]), 1)
-                            except:
-                                pass
-                            return datetime.min
-
-                        from_date = parse_custom_my(from_input)
-                        to_date = parse_custom_my(to_input)
-
-                        mask = df_titles_filter["_dt"].apply(lambda d: from_date <= datetime(d.year, d.month, 1) <= to_date if pd.notnull(d) else False)
-                        df_filtered_titles = df_titles_filter[mask]
-                        
-                        list_all_events = df_filtered_titles["Sự kiện"].tolist()
+                    if not df_titles.empty and "Sự kiện" in df_titles.columns:
+                        list_all_events = df_titles["Sự kiện"].tolist()
 
                         if list_all_events:
                             selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
@@ -1215,7 +1226,7 @@ def main():
                                     else:
                                         st.info("ℹ️ Không có dữ liệu nhân sự.")
                         else:
-                            st.warning("⚠️ Không tìm thấy sự kiện nào trong khoảng thời gian tháng/năm đã nhập.")
+                            st.warning("⚠️ Không tìm thấy sự kiện nào trong khoảng thời gian tháng/năm đã chọn.")
 
                     st.markdown("---")
 
@@ -1236,7 +1247,7 @@ def main():
 
                         st.dataframe(df_summary_show, use_container_width=True, height=400, hide_index=True)
                     else:
-                        st.info("ℹ️ Cần có ít nhất 1 sự kiện và danh sách nhân sự để phân tích chi tiết.")
+                        st.info("ℹ️ Cần có ít nhất 1 sự kiện và danh sách nhân sự trong khoảng thời gian này để tổng hợp.")
 
 
 if __name__ == "__main__":
