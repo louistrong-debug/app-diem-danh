@@ -711,7 +711,7 @@ def main():
                                 new_date = datetime.strptime(raw_date.strip(), "%d/%m/%Y").date()
                             except Exception:
                                 new_date = current_vn_date
-                            
+                        
                             if st.session_state["selected_title_input"] != new_title or st.session_state["selected_date_input"] != new_date:
                                 st.session_state["selected_title_input"] = new_title
                                 st.session_state["selected_date_input"] = new_date
@@ -854,6 +854,10 @@ def main():
 
                 df_filtered = df_att[df_att["Nội dung"] == selected_filter].copy() if selected_filter != "Tất cả" else df_att.copy()
 
+                # THÊM CỘT STT VÀO ĐẦU BẢNG ĐIỂM DANH TẠI TAB 2
+                df_filtered = df_filtered.reset_index(drop=True)
+                df_filtered.insert(0, "STT", range(1, len(df_filtered) + 1))
+
                 st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
                 
                 event_att = st.dataframe(
@@ -862,7 +866,8 @@ def main():
                     height=280, 
                     selection_mode="single-row", 
                     on_select="rerun",
-                    key="attendance_dataframe"
+                    key="attendance_dataframe",
+                    hide_index=True
                 )
 
                 selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
@@ -895,8 +900,24 @@ def main():
                         else:
                             selected_idx_in_filtered = selected_att_rows[0]
                             row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
-                            original_index = row_to_delete.name
-                            delete_single_attendance_dialog(original_index, row_to_delete)
+                            
+                            # Tìm lại index gốc của dòng trong df_att trước khi chèn cột STT
+                            if os.path.exists(ATTENDANCE_FILE):
+                                df_att_original = pd.read_excel(ATTENDANCE_FILE)
+                                if "Nội dung Nghị quyết" in df_att_original.columns:
+                                    df_att_original = df_att_original.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                                
+                                # Khớp lại bằng các thông tin đặc trưng của dòng
+                                matched_original = df_att_original[
+                                    (df_att_original["Nội dung"] == row_to_delete["Nội dung"]) & 
+                                    (df_att_original["Họ tên"] == row_to_delete["Họ tên"]) & 
+                                    (df_att_original["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"])
+                                ]
+                                if not matched_original.empty:
+                                    original_index = matched_original.index[0]
+                                    delete_single_attendance_dialog(original_index, row_to_delete)
+                                else:
+                                    st.error("❌ Không tìm thấy dòng tương ứng trong file dữ liệu gốc!")
 
                 with col_btn2:
                     btn_label = "🔥 Xóa tất cả điểm danh" if selected_filter == "Tất cả" else f"🔥 Xóa điểm danh sự kiện này"
@@ -926,9 +947,11 @@ def main():
                             delete_specific_event_dialog(selected_filter)
 
                 with col_btn3:
+                    # Xuất file Excel loại bỏ cột STT giả lập giao diện để giữ nguyên cấu trúc gốc
+                    df_export = df_filtered.drop(columns=["STT"]) if "STT" in df_filtered.columns else df_filtered
                     output = io.BytesIO()
                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df_filtered.to_excel(writer, index=False)
+                        df_export.to_excel(writer, index=False)
                     excel_data = output.getvalue()
 
                     file_name_download = f"bao_cao_{selected_filter}.xlsx" if selected_filter != "Tất cả" else "bao_cao_tat_ca_diem_danh.xlsx"
@@ -1048,7 +1071,6 @@ def main():
                     if "Ngày học" in df_titles_raw.columns and "Ngày tổ chức" not in df_titles_raw.columns:
                         df_titles_raw = df_titles_raw.rename(columns={"Ngày học": "Ngày tổ chức"})
 
-                    # BƯỚC 1: LỌC DANH SÁCH SỰ KIỆN THEO KHOẢNG THỜI GIAN CHUNG (ĐÃ ĐƯA LÊN CÙNG 1 HÀNG)
                     df_titles_filter = df_titles_raw.copy()
                     df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
 
@@ -1073,11 +1095,9 @@ def main():
                     mask = df_titles_filter["_dt"].apply(lambda d: from_date <= datetime(d.year, d.month, 1) <= to_date if pd.notnull(d) else False)
                     df_titles = df_titles_filter[mask].copy()
 
-                    # LỌC DỮ LIỆU ĐIỂM DANH CHỈ THUỘC CÁC SỰ KIỆN TRONG KHOẢNG THỜI GIAN ĐÓ
                     valid_events = df_titles["Sự kiện"].tolist()
                     df_att_raw = df_att_raw[df_att_raw["Nội dung"].isin(valid_events)].copy()
 
-                    # LỌC BỎ TRÙNG LẶP: Nếu 1 người điểm danh nhiều lần trong cùng 1 sự kiện, chỉ giữ lại 1 lần duy nhất
                     df_att = df_att_raw.drop_duplicates(subset=["Nội dung", "Họ tên"]).copy()
 
                     total_events = len(df_titles)
@@ -1086,7 +1106,6 @@ def main():
 
                     st.markdown("---")
 
-                    # A. PHẦN TỔNG QUAN (TOP WIDGETS - KPI)
                     col_kpi1, col_kpi2, col_kpi3 = st.columns(3, gap="medium")
                     
                     with col_kpi1:
@@ -1107,7 +1126,6 @@ def main():
 
                     st.markdown("---")
 
-                    # B. PHẦN BIỂU ĐỒ (VISUALIZATIONS - PLOTLY)
                     col_chart1, col_chart2 = st.columns(2, gap="large")
 
                     with col_chart1:
@@ -1162,7 +1180,6 @@ def main():
 
                     st.markdown("---")
 
-                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
                     if not df_titles.empty and "Sự kiện" in df_titles.columns:
                         list_all_events = df_titles["Sự kiện"].tolist()
@@ -1225,12 +1242,11 @@ def main():
                                             st.success("🎉 Tuyệt vời! Sự kiện này không có ai vắng mặt.")
                                     else:
                                         st.info("ℹ️ Không có dữ liệu nhân sự.")
-                        else:
-                            st.warning("⚠️ Không tìm thấy sự kiện nào trong khoảng thời gian tháng/năm đã chọn.")
+                    else:
+                        st.warning("⚠️ Không tìm thấy sự kiện nào trong khoảng thời gian tháng/năm đã chọn.")
 
                     st.markdown("---")
 
-                    # D. PHẦN TỔNG HỢP TOÀN BỘ NHÂN SỰ
                     st.markdown("### 📋 Bảng Tổng Hợp Tình Hình Tham Gia Sinh Hoạt")
 
                     if total_events > 0 and not df_nhansu.empty:
