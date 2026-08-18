@@ -856,7 +856,7 @@ def main():
 
                 st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
                 
-                # GIỮ NGUYÊN INDEX GỐC ĐỂ BẮT ĐÚNG DÒNG KHI XÓA (KHÔNG DÙNG INSERT STT TẠI TAB NÀY NỮA)
+                # KHÔI PHỤC NGUYÊN BẢN ĐỂ BẮT CHÍNH XÁC INDEX GỐC KHI XÓA
                 event_att = st.dataframe(
                     df_filtered, 
                     width="stretch", 
@@ -1128,38 +1128,34 @@ def main():
 
                     st.markdown("---")
 
-                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (BỔ SUNG BỘ LỌC THỜI GIAN)
+                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (BỔ SUNG BỘ LỌC THỜI GIAN GÕ HOẶC CHỌN)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
                     if not df_titles.empty and "Sự kiện" in df_titles.columns and "Ngày tổ chức" in df_titles.columns:
                         df_titles_filter = df_titles.copy()
                         df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
-                        df_titles_filter["_month_year"] = df_titles_filter["_dt"].dt.strftime("%m/%Y")
                         
-                        available_months = sorted(df_titles_filter["_month_year"].dropna().unique().tolist())
+                        col_f1, col_f2 = st.columns(2, gap="medium")
+                        with col_f1:
+                            from_input = st.text_input("📅 Từ tháng/năm (MM/YYYY):", value="01/2026", placeholder="VD: 08/2026", key="input_from_my")
+                        with col_f2:
+                            to_input = st.text_input("📅 Đến tháng/năm (MM/YYYY):", value="12/2026", placeholder="VD: 12/2026", key="input_to_my")
                         
-                        if available_months:
-                            col_f1, col_f2 = st.columns(2, gap="medium")
-                            with col_f1:
-                                selected_from_my = st.selectbox("📅 Từ tháng/năm:", available_months, index=0, key="sel_from_my")
-                            with col_f2:
-                                selected_to_my = st.selectbox("📅 Đến tháng/năm:", available_months, index=len(available_months)-1, key="sel_to_my")
-                            
-                            def parse_my(my_str):
-                                try:
-                                    m, y = my_str.split("/")
-                                    return datetime(int(y), int(m), 1)
-                                except:
-                                    return datetime.min
+                        def parse_custom_my(my_str):
+                            try:
+                                parts = my_str.strip().split("/")
+                                if len(parts) == 2:
+                                    return datetime(int(parts[1]), int(parts[0]), 1)
+                            except:
+                                pass
+                            return datetime.min
 
-                            from_date = parse_my(selected_from_my)
-                            to_date = parse_my(selected_to_my)
+                        from_date = parse_custom_my(from_input)
+                        to_date = parse_custom_my(to_input)
 
-                            mask = df_titles_filter["_dt"].apply(lambda d: from_date <= datetime(d.year, d.month, 1) <= to_date if pd.notnull(d) else False)
-                            df_filtered_titles = df_titles_filter[mask]
-                            
-                            list_all_events = df_filtered_titles["Sự kiện"].tolist()
-                        else:
-                            list_all_events = df_titles["Sự kiện"].tolist()
+                        mask = df_titles_filter["_dt"].apply(lambda d: from_date <= datetime(d.year, d.month, 1) <= to_date if pd.notnull(d) else False)
+                        df_filtered_titles = df_titles_filter[mask]
+                        
+                        list_all_events = df_filtered_titles["Sự kiện"].tolist()
 
                         if list_all_events:
                             selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
@@ -1220,7 +1216,7 @@ def main():
                                     else:
                                         st.info("ℹ️ Không có dữ liệu nhân sự.")
                         else:
-                            st.warning("⚠️ Không tìm thấy sự kiện nào trong khoảng thời gian đã chọn.")
+                            st.warning("⚠️ Không tìm thấy sự kiện nào trong khoảng thời gian tháng/năm đã nhập.")
 
                     st.markdown("---")
 
