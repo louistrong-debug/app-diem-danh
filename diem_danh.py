@@ -367,7 +367,6 @@ def delete_confirmation_dialog(target_title):
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete"):
         df_titles = load_titles()
         df_titles = df_titles[df_titles["Sự kiện"] != target_title]
-        # ĐÃ SỬA: Gọi trực tiếp save_titles để vừa xóa local vừa đồng bộ lên Google Sheets ngay lập tức
         save_titles(df_titles)
         st.success(f"Đã xóa thành công sự kiện '{target_title}' (đã đồng bộ Cloud).")
         st.rerun()
@@ -857,18 +856,14 @@ def main():
 
                 st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
                 
-                if not df_filtered.empty:
-                    df_filtered = df_filtered.reset_index(drop=True)
-                    df_filtered.insert(0, "STT", range(1, len(df_filtered) + 1))
-
+                # GIỮ NGUYÊN INDEX GỐC ĐỂ BẮT ĐÚNG DÒNG KHI XÓA (KHÔNG DÙNG INSERT STT TẠI TAB NÀY NỮA)
                 event_att = st.dataframe(
                     df_filtered, 
                     width="stretch", 
                     height=280, 
                     selection_mode="single-row", 
                     on_select="rerun",
-                    key="attendance_dataframe",
-                    hide_index=True
+                    key="attendance_dataframe"
                 )
 
                 selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
@@ -1136,12 +1131,10 @@ def main():
                     # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (BỔ SUNG BỘ LỌC THỜI GIAN)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
                     if not df_titles.empty and "Sự kiện" in df_titles.columns and "Ngày tổ chức" in df_titles.columns:
-                        # Xử lý trích xuất Tháng/Năm từ cột Ngày tổ chức để làm bộ lọc
                         df_titles_filter = df_titles.copy()
                         df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
                         df_titles_filter["_month_year"] = df_titles_filter["_dt"].dt.strftime("%m/%Y")
                         
-                        # Lấy danh sách các tháng/năm có sẵn
                         available_months = sorted(df_titles_filter["_month_year"].dropna().unique().tolist())
                         
                         if available_months:
@@ -1151,7 +1144,6 @@ def main():
                             with col_f2:
                                 selected_to_my = st.selectbox("📅 Đến tháng/năm:", available_months, index=len(available_months)-1, key="sel_to_my")
                             
-                            # Lọc danh sách sự kiện theo khoảng thời gian người dùng chọn
                             def parse_my(my_str):
                                 try:
                                     m, y = my_str.split("/")
@@ -1242,11 +1234,9 @@ def main():
                         df_summary["Số buổi vắng"] = total_events - df_summary["Số buổi tham gia"]
                         df_summary["Tỉ lệ tham gia (%)"] = ((df_summary["Số buổi tham gia"] / total_events) * 100).round(1)
 
-                        # Sắp xếp mặc định Tỉ lệ tham gia (%) tăng dần (từ 0% lên cao nhất)
                         df_summary = df_summary.sort_values(by="Tỉ lệ tham gia (%)", ascending=True).reset_index(drop=True)
                         df_summary["STT"] = range(1, len(df_summary) + 1)
 
-                        # Sắp xếp lại thứ tự cột cho đúng yêu cầu
                         df_summary_show = df_summary[["STT", "Họ tên", "Phòng ban", "Chức vụ", "Tổng Sự kiện", "Số buổi vắng", "Tỉ lệ tham gia (%)"]]
 
                         st.dataframe(df_summary_show, use_container_width=True, height=400, hide_index=True)
