@@ -75,7 +75,10 @@ def sync_to_google():
         
         for sheet_key, filename in FILES_MAP.items():
             if os.path.exists(filename):
-                df = pd.read_excel(filename)
+                try:
+                    df = pd.read_excel(filename)
+                except Exception:
+                    df = pd.DataFrame()
             else:
                 df = pd.DataFrame()
                 
@@ -115,10 +118,13 @@ def sync_from_google_to_local():
                     df_cloud = pd.DataFrame(data)
                     
                     if sheet_key == "ket_qua_diem_danh" and os.path.exists(filename):
-                        df_local = pd.read_excel(filename)
-                        if "Mã Ảnh Drive" in df_local.columns and "Mã Ảnh Drive" in df_cloud.columns:
-                            if len(df_local) == len(df_cloud):
-                                df_cloud["Mã Ảnh Drive"] = df_local["Mã Ảnh Drive"].values
+                        try:
+                            df_local = pd.read_excel(filename)
+                            if "Mã Ảnh Drive" in df_local.columns and "Mã Ảnh Drive" in df_cloud.columns:
+                                if len(df_local) == len(df_cloud):
+                                    df_cloud["Mã Ảnh Drive"] = df_local["Mã Ảnh Drive"].values
+                        except Exception:
+                            pass
                     
                     df_cloud.to_excel(filename, index=False)
                 else:
@@ -134,7 +140,19 @@ def sync_from_google_to_local():
 
 def load_data():
     if os.path.exists(EXCEL_FILE):
-        df = pd.read_excel(EXCEL_FILE)
+        try:
+            df = pd.read_excel(EXCEL_FILE)
+        except Exception:
+            # Nếu file bị lỗi cấu trúc/hỏng, xóa file cũ và tạo lại DataFrame mặc định
+            if os.path.exists(EXCEL_FILE):
+                os.remove(EXCEL_FILE)
+            df = pd.DataFrame({
+                "STT": [1, 2, 3],
+                "Họ tên": ["Nguyễn Văn A", "Trần Thị B", "Lê Văn C"],
+                "Phòng ban": ["Phòng Tổ chức", "Phòng Đào tạo", "Ban Giám đốc"],
+                "Chức vụ": ["Nhân viên", "Chuyên viên", "Trưởng phòng"],
+            })
+            df.to_excel(EXCEL_FILE, index=False)
     else:
         df = pd.DataFrame({
             "STT": [1, 2, 3],
@@ -383,7 +401,11 @@ def delete_single_attendance_dialog(row_index_to_delete, row_data):
     
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_single"):
         if os.path.exists(ATTENDANCE_FILE):
-            df_att = pd.read_excel(ATTENDANCE_FILE)
+            try:
+                df_att = pd.read_excel(ATTENDANCE_FILE)
+            except Exception:
+                df_att = pd.DataFrame()
+
             if "Nội dung Nghị quyết" in df_att.columns:
                 df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                 
@@ -426,10 +448,14 @@ def delete_all_attendance_dialog():
     
     if st.button("🚨 Đồng ý xóa sạch", use_container_width=True, key="btn_confirm_delete_all"):
         if os.path.exists(ATTENDANCE_FILE):
-            df_att = pd.read_excel(ATTENDANCE_FILE)
+            try:
+                df_att = pd.read_excel(ATTENDANCE_FILE)
+            except Exception:
+                df_att = pd.DataFrame()
+
             if "Nội dung Nghị quyết" in df_att.columns:
                 df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-            df_empty = pd.DataFrame(columns=df_att.columns)
+            df_empty = pd.DataFrame(columns=df_att.columns if not df_att.empty else ["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
             df_empty.to_excel(ATTENDANCE_FILE, index=False)
         else:
             df_empty = pd.DataFrame(columns=["Nội dung", "Ngày học", "Họ tên", "Phòng ban", "Chức vụ", "Thời gian điểm danh", "Mã Ảnh Drive"])
@@ -516,7 +542,7 @@ def main():
         else:
             col_c1, col_c2, col_c3 = st.columns([1, 2, 1])
             with col_c2:
-                all_names = df_nhansu["Họ tên"].dropna().unique().tolist()
+                all_names = df_nhansu["Họ tên"].dropna().unique().tolist() if "Họ tên" in df_nhansu.columns else []
 
                 search_keyword = st.text_input("🔍 Gõ tên để lọc nhanh (hỗ trợ iPhone):", "", placeholder="Nhập tên hoặc họ...")
                 
@@ -532,11 +558,11 @@ def main():
                 default_pb = ""
                 default_cv = ""
 
-                if selected_name != "-- Chọn họ tên --":
+                if selected_name != "-- Chọn họ tên --" and "Họ tên" in df_nhansu.columns:
                     matched_row = df_nhansu[df_nhansu["Họ tên"] == selected_name]
                     if not matched_row.empty:
-                        default_pb = str(matched_row.iloc[0]["Phòng ban"])
-                        default_cv = str(matched_row.iloc[0]["Chức vụ"])
+                        default_pb = str(matched_row.iloc[0].get("Phòng ban", ""))
+                        default_cv = str(matched_row.iloc[0].get("Chức vụ", ""))
 
                 st.markdown("<p style='font-size: 17px; font-weight: 700; margin-top: 15px; margin-bottom: 5px; color: #1E293B;'>🏢 Phòng ban:</p>", unsafe_allow_html=True)
                 st.info(f"**{default_pb}**" if default_pb else "Chưa chọn tên...")
@@ -574,7 +600,11 @@ def main():
                             }
                             
                             if os.path.exists(ATTENDANCE_FILE):
-                                df_att = pd.read_excel(ATTENDANCE_FILE)
+                                try:
+                                    df_att = pd.read_excel(ATTENDANCE_FILE)
+                                except Exception:
+                                    df_att = pd.DataFrame()
+
                                 if "Nội dung Nghị quyết" in df_att.columns:
                                     df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
                                 df_att = pd.concat([df_att, pd.DataFrame([record_data])], ignore_index=True)
@@ -808,7 +838,11 @@ def main():
                         
                         has_transaction = False
                         if os.path.exists(ATTENDANCE_FILE):
-                            df_att_check = pd.read_excel(ATTENDANCE_FILE)
+                            try:
+                                df_att_check = pd.read_excel(ATTENDANCE_FILE)
+                            except Exception:
+                                df_att_check = pd.DataFrame()
+
                             col_check = "Nội dung" if "Nội dung" in df_att_check.columns else ("Nội dung Nghị quyết" if "Nội dung Nghị quyết" in df_att_check.columns else None)
                             if col_check and target_title in df_att_check[col_check].values:
                                 has_transaction = True
@@ -836,133 +870,144 @@ def main():
         with rendered_tabs[1]:
             st.markdown("### 📈 Thống Kê & Báo Cáo Điểm Danh")
             if os.path.exists(ATTENDANCE_FILE):
-                df_att = pd.read_excel(ATTENDANCE_FILE)
+                try:
+                    df_att = pd.read_excel(ATTENDANCE_FILE)
+                except Exception:
+                    df_att = pd.DataFrame()
 
-                if "Nội dung Nghị quyết" in df_att.columns:
-                    df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                    df_att.to_excel(ATTENDANCE_FILE, index=False)
+                if not df_att.empty:
+                    if "Nội dung Nghị quyết" in df_att.columns:
+                        df_att = df_att.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                        df_att.to_excel(ATTENDANCE_FILE, index=False)
 
-                if "Thời gian điểm danh" in df_att.columns:
-                    df_att["Thời gian điểm danh"] = pd.to_datetime(
-                        df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
-                    ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
+                    if "Thời gian điểm danh" in df_att.columns:
+                        df_att["Thời gian điểm danh"] = pd.to_datetime(
+                            df_att["Thời gian điểm danh"], dayfirst=True, errors='coerce'
+                        ).dt.strftime("%d/%m/%Y %H:%M:%S").fillna(df_att["Thời gian điểm danh"].astype(str))
 
-                list_nq = df_att["Nội dung"].unique().tolist() if "Nội dung" in df_att.columns else []
-                selected_filter = st.selectbox(
-                    "🔍 Lọc theo sự kiện:", ["Tất cả"] + list_nq
-                )
-
-                df_filtered = df_att[df_att["Nội dung"] == selected_filter].copy() if selected_filter != "Tất cả" else df_att.copy()
-
-                # THÊM CỘT STT VÀO ĐẦU BẢNG ĐIỂM DANH TẠI TAB 2
-                df_filtered = df_filtered.reset_index(drop=True)
-                df_filtered.insert(0, "STT", range(1, len(df_filtered) + 1))
-
-                st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
-                
-                event_att = st.dataframe(
-                    df_filtered, 
-                    width="stretch", 
-                    height=280, 
-                    selection_mode="single-row", 
-                    on_select="rerun",
-                    key="attendance_dataframe",
-                    hide_index=True
-                )
-
-                selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
-                if selected_att_rows:
-                    selected_idx_in_filtered = selected_att_rows[0]
-                    if selected_idx_in_filtered < len(df_filtered):
-                        row_selected = df_filtered.iloc[selected_idx_in_filtered]
-                        img_data = row_selected.get("Mã Ảnh Drive", "")
-                        
-                        st.write("---")
-                        col_img1, col_img2 = st.columns([1, 2], gap="large")
-                        with col_img1:
-                            st.markdown(f"#### 📸 Ảnh xác thực")
-                            st.markdown(f"👤 **Họ tên:** {row_selected['Họ tên']}")
-                            st.markdown(f"🏢 **Phòng ban:** {row_selected.get('Phòng ban', '')}")
-                            st.markdown(f"⏱️ **Thời gian:** {row_selected['Thời gian điểm danh']}")
-                        with col_img2:
-                            if str(img_data).startswith("data:image/"):
-                                st.markdown(f'<img src="{img_data}" width="220" style="border-radius: 10px; border: 2px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
-                            else:
-                                st.info("ℹ️ Không có ảnh xác thực hoặc định dạng cũ.")
-
-                st.markdown("---")
-                col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
-                
-                with col_btn1:
-                    if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
-                        if not selected_att_rows:
-                            st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
-                        else:
-                            selected_idx_in_filtered = selected_att_rows[0]
-                            row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
-                            
-                            # Tìm lại index gốc của dòng trong df_att trước khi chèn cột STT
-                            if os.path.exists(ATTENDANCE_FILE):
-                                df_att_original = pd.read_excel(ATTENDANCE_FILE)
-                                if "Nội dung Nghị quyết" in df_att_original.columns:
-                                    df_att_original = df_att_original.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                                
-                                # Khớp lại bằng các thông tin đặc trưng của dòng
-                                matched_original = df_att_original[
-                                    (df_att_original["Nội dung"] == row_to_delete["Nội dung"]) & 
-                                    (df_att_original["Họ tên"] == row_to_delete["Họ tên"]) & 
-                                    (df_att_original["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"])
-                                ]
-                                if not matched_original.empty:
-                                    original_index = matched_original.index[0]
-                                    delete_single_attendance_dialog(original_index, row_to_delete)
-                                else:
-                                    st.error("❌ Không tìm thấy dòng tương ứng trong file dữ liệu gốc!")
-
-                with col_btn2:
-                    btn_label = "🔥 Xóa tất cả điểm danh" if selected_filter == "Tất cả" else f"🔥 Xóa điểm danh sự kiện này"
-                    if st.button(btn_label, use_container_width=True):
-                        if selected_filter == "Tất cả":
-                            delete_all_attendance_dialog()
-                        else:
-                            @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
-                            def delete_specific_event_dialog(target_event):
-                                st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
-                                st.write("")
-                                if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
-                                    if os.path.exists(ATTENDANCE_FILE):
-                                        df_att_all = pd.read_excel(ATTENDANCE_FILE)
-                                        if "Nội dung Nghị quyết" in df_att_all.columns:
-                                            df_att_all = df_att_all.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                                    
-                                        df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
-                                        df_remaining.to_excel(ATTENDANCE_FILE, index=False)
-                                        sync_to_google() 
-                                        st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
-                                        st.rerun()
-                                st.write("")
-                                if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_specific"):
-                                    st.rerun()
-                            
-                            delete_specific_event_dialog(selected_filter)
-
-                with col_btn3:
-                    # Xuất file Excel loại bỏ cột STT giả lập giao diện để giữ nguyên cấu trúc gốc
-                    df_export = df_filtered.drop(columns=["STT"]) if "STT" in df_filtered.columns else df_filtered
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df_export.to_excel(writer, index=False)
-                    excel_data = output.getvalue()
-
-                    file_name_download = f"bao_cao_{selected_filter}.xlsx" if selected_filter != "Tất cả" else "bao_cao_tat_ca_diem_danh.xlsx"
-
-                    st.download_button(
-                        label="📥 Tải Xuống Báo Cáo",
-                        data=excel_data,
-                        file_name=file_name_download,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
+                    list_nq = df_att["Nội dung"].unique().tolist() if "Nội dung" in df_att.columns else []
+                    selected_filter = st.selectbox(
+                        "🔍 Lọc theo sự kiện:", ["Tất cả"] + list_nq
                     )
+
+                    df_filtered = df_att[df_att["Nội dung"] == selected_filter].copy() if selected_filter != "Tất cả" else df_att.copy()
+
+                    # THÊM CỘT STT VÀO ĐẦU BẢNG ĐIỂM DANH TẠI TAB 2
+                    df_filtered = df_filtered.reset_index(drop=True)
+                    df_filtered.insert(0, "STT", range(1, len(df_filtered) + 1))
+
+                    st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
+                    
+                    event_att = st.dataframe(
+                        df_filtered, 
+                        width="stretch", 
+                        height=280, 
+                        selection_mode="single-row", 
+                        on_select="rerun",
+                        key="attendance_dataframe",
+                        hide_index=True
+                    )
+
+                    selected_att_rows = st.session_state.get("attendance_dataframe", {}).get("selection", {}).get("rows", [])
+                    if selected_att_rows:
+                        selected_idx_in_filtered = selected_att_rows[0]
+                        if selected_idx_in_filtered < len(df_filtered):
+                            row_selected = df_filtered.iloc[selected_idx_in_filtered]
+                            img_data = row_selected.get("Mã Ảnh Drive", "")
+                            
+                            st.write("---")
+                            col_img1, col_img2 = st.columns([1, 2], gap="large")
+                            with col_img1:
+                                st.markdown(f"#### 📸 Ảnh xác thực")
+                                st.markdown(f"👤 **Họ tên:** {row_selected['Họ tên']}")
+                                st.markdown(f"🏢 **Phòng ban:** {row_selected.get('Phòng ban', '')}")
+                                st.markdown(f"⏱️ **Thời gian:** {row_selected['Thời gian điểm danh']}")
+                            with col_img2:
+                                if str(img_data).startswith("data:image/"):
+                                    st.markdown(f'<img src="{img_data}" width="220" style="border-radius: 10px; border: 2px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
+                                else:
+                                    st.info("ℹ️ Không có ảnh xác thực hoặc định dạng cũ.")
+
+                    st.markdown("---")
+                    col_btn1, col_btn2, col_btn3 = st.columns(3, gap="small")
+                    
+                    with col_btn1:
+                        if st.button("🗑️ Xóa dòng đã chọn", use_container_width=True):
+                            if not selected_att_rows:
+                                st.warning("⚠️ Vui lòng nhấp chọn một dòng điểm danh trong bảng phía trên!")
+                            else:
+                                selected_idx_in_filtered = selected_att_rows[0]
+                                row_to_delete = df_filtered.iloc[selected_idx_in_filtered]
+                                
+                                if os.path.exists(ATTENDANCE_FILE):
+                                    try:
+                                        df_att_original = pd.read_excel(ATTENDANCE_FILE)
+                                    except Exception:
+                                        df_att_original = pd.DataFrame()
+
+                                    if "Nội dung Nghị quyết" in df_att_original.columns:
+                                        df_att_original = df_att_original.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                                    
+                                    matched_original = df_att_original[
+                                        (df_att_original["Nội dung"] == row_to_delete["Nội dung"]) & 
+                                        (df_att_original["Họ tên"] == row_to_delete["Họ tên"]) & 
+                                        (df_att_original["Thời gian điểm danh"] == row_to_delete["Thời gian điểm danh"])
+                                    ]
+                                    if not matched_original.empty:
+                                        original_index = matched_original.index[0]
+                                        delete_single_attendance_dialog(original_index, row_to_delete)
+                                    else:
+                                        st.error("❌ Không tìm thấy dòng tương ứng trong file dữ liệu gốc!")
+
+                    with col_btn2:
+                        btn_label = "🔥 Xóa tất cả điểm danh" if selected_filter == "Tất cả" else f"🔥 Xóa điểm danh sự kiện này"
+                        if st.button(btn_label, use_container_width=True):
+                            if selected_filter == "Tất cả":
+                                delete_all_attendance_dialog()
+                            else:
+                                @st.dialog("⚠️ Xác Nhận Xóa Điểm Danh Theo Sự Kiện")
+                                def delete_specific_event_dialog(target_event):
+                                    st.markdown(f"Bạn có chắc chắn muốn xóa **toàn bộ dữ liệu điểm danh** của sự kiện **'{target_event}'** không? Hành động này không thể hoàn tác!")
+                                    st.write("")
+                                    if st.button("🚨 Đồng ý xóa", use_container_width=True, key="btn_confirm_delete_specific"):
+                                        if os.path.exists(ATTENDANCE_FILE):
+                                            try:
+                                                df_att_all = pd.read_excel(ATTENDANCE_FILE)
+                                            except Exception:
+                                                df_att_all = pd.DataFrame()
+
+                                            if "Nội dung Nghị quyết" in df_att_all.columns:
+                                                df_att_all = df_att_all.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
+                                        
+                                            df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
+                                            df_remaining.to_excel(ATTENDANCE_FILE, index=False)
+                                            sync_to_google() 
+                                            st.success(f"Đã xóa toàn bộ điểm danh của sự kiện '{target_event}' thành công.")
+                                            st.rerun()
+                                    st.write("")
+                                    if st.button("❌ Hủy bỏ", use_container_width=True, key="btn_cancel_delete_specific"):
+                                        st.rerun()
+                                
+                                delete_specific_event_dialog(selected_filter)
+
+                    with col_btn3:
+                        df_export = df_filtered.drop(columns=["STT"]) if "STT" in df_filtered.columns else df_filtered
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            df_export.to_excel(writer, index=False)
+                        excel_data = output.getvalue()
+
+                        file_name_download = f"bao_cao_{selected_filter}.xlsx" if selected_filter != "Tất cả" else "bao_cao_tat_ca_diem_danh.xlsx"
+
+                        st.download_button(
+                            label="📥 Tải Xuống Báo Cáo",
+                            data=excel_data,
+                            file_name=file_name_download,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
+                else:
+                    st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
             else:
                 st.info("ℹ️ Hiện tại chưa có dữ liệu điểm danh nào được ghi nhận.")
 
@@ -1060,9 +1105,12 @@ def main():
                 if not os.path.exists(ATTENDANCE_FILE) or not os.path.exists(TITLES_FILE) or not os.path.exists(EXCEL_FILE):
                     st.info("ℹ️ Chưa đủ dữ liệu từ các file (Điểm danh, Sự kiện, Nhân sự) để tổng hợp báo cáo.")
                 else:
-                    df_att_raw = pd.read_excel(ATTENDANCE_FILE)
-                    df_titles_raw = pd.read_excel(TITLES_FILE)
-                    df_nhansu = pd.read_excel(EXCEL_FILE)
+                    try:
+                        df_att_raw = pd.read_excel(ATTENDANCE_FILE)
+                        df_titles_raw = pd.read_excel(TITLES_FILE)
+                        df_nhansu = pd.read_excel(EXCEL_FILE)
+                    except Exception:
+                        df_att_raw, df_titles_raw, df_nhansu = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
                     if "Nội dung Nghị quyết" in df_att_raw.columns:
                         df_att_raw = df_att_raw.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
@@ -1072,7 +1120,10 @@ def main():
                         df_titles_raw = df_titles_raw.rename(columns={"Ngày học": "Ngày tổ chức"})
 
                     df_titles_filter = df_titles_raw.copy()
-                    df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
+                    if "Ngày tổ chức" in df_titles_filter.columns:
+                        df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
+                    else:
+                        df_titles_filter["_dt"] = pd.NaT
 
                     col_f1, col_f2 = st.columns(2, gap="medium")
                     with col_f1:
@@ -1095,10 +1146,10 @@ def main():
                     mask = df_titles_filter["_dt"].apply(lambda d: from_date <= datetime(d.year, d.month, 1) <= to_date if pd.notnull(d) else False)
                     df_titles = df_titles_filter[mask].copy()
 
-                    valid_events = df_titles["Sự kiện"].tolist()
-                    df_att_raw = df_att_raw[df_att_raw["Nội dung"].isin(valid_events)].copy()
+                    valid_events = df_titles["Sự kiện"].tolist() if "Sự kiện" in df_titles.columns else []
+                    df_att_raw = df_att_raw[df_att_raw["Nội dung"].isin(valid_events)].copy() if not df_att_raw.empty and "Nội dung" in df_att_raw.columns else pd.DataFrame()
 
-                    df_att = df_att_raw.drop_duplicates(subset=["Nội dung", "Họ tên"]).copy()
+                    df_att = df_att_raw.drop_duplicates(subset=["Nội dung", "Họ tên"]).copy() if not df_att_raw.empty and "Nội dung" in df_att_raw.columns and "Họ tên" in df_att_raw.columns else pd.DataFrame()
 
                     total_events = len(df_titles)
                     total_staff = len(df_nhansu)
@@ -1120,7 +1171,7 @@ def main():
 
                     with col_kpi3:
                         latest_event = df_titles.iloc[-1]["Sự kiện"] if not df_titles.empty and "Sự kiện" in df_titles.columns else "Chưa có"
-                        latest_count = len(df_att[df_att["Nội dung"] == latest_event]) if not df_titles.empty else 0
+                        latest_count = len(df_att[df_att["Nội dung"] == latest_event]) if not df_att.empty and "Nội dung" in df_att.columns else 0
                         latest_rate = (latest_count / total_staff * 100) if total_staff > 0 else 0
                         st.metric(label="🔥 Sự Kiện Gần Nhất", value=f"{latest_rate:.1f}%", help=f"Sự kiện: {latest_event} ({latest_count}/{total_staff} nhân sự)")
 
@@ -1130,7 +1181,7 @@ def main():
 
                     with col_chart1:
                         st.markdown("#### 🏢 Tỉ Lệ Chuyên Cần Theo Phòng Ban")
-                        if not df_att.empty and not df_nhansu.empty:
+                        if not df_att.empty and not df_nhansu.empty and "Phòng ban" in df_att.columns and "Phòng ban" in df_nhansu.columns:
                             df_dept_att = df_att.groupby("Phòng ban")["Họ tên"].count().reset_index()
                             df_dept_att = df_dept_att.rename(columns={"Họ tên": "Số lượt tham gia"})
                             
@@ -1161,7 +1212,7 @@ def main():
                             event_counts = []
                             for idx, row in df_titles.iterrows():
                                 ev_title = row["Sự kiện"]
-                                count = len(df_att[df_att["Nội dung"] == ev_title])
+                                count = len(df_att[df_att["Nội dung"] == ev_title]) if not df_att.empty and "Nội dung" in df_att.columns else 0
                                 event_counts.append({"Sự kiện": ev_title, "Ngày tổ chức": row.get("Ngày tổ chức", ""), "Số người tham gia": count})
                             
                             df_trend = pd.DataFrame(event_counts)
@@ -1188,7 +1239,7 @@ def main():
                             selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
 
                             if selected_detail_event:
-                                df_event_att = df_att[df_att["Nội dung"] == selected_detail_event]
+                                df_event_att = df_att[df_att["Nội dung"] == selected_detail_event] if not df_att.empty and "Nội dung" in df_att.columns else pd.DataFrame()
                                 event_attendees_count = len(df_event_att)
                                 event_rate = (event_attendees_count / total_staff * 100) if total_staff > 0 else 0
 
@@ -1205,7 +1256,7 @@ def main():
 
                                 with col_ev_chart:
                                     st.markdown(f"#### 📊 Tỉ Lệ Phòng Ban Trong Sự Kiện")
-                                    if not df_event_att.empty and not df_nhansu.empty:
+                                    if not df_event_att.empty and not df_nhansu.empty and "Phòng ban" in df_event_att.columns and "Phòng ban" in df_nhansu.columns:
                                         df_ev_dept_att = df_event_att.groupby("Phòng ban")["Họ tên"].count().reset_index()
                                         df_ev_dept_att = df_ev_dept_att.rename(columns={"Họ tên": "Tham gia"})
                                         df_ev_dept_total = df_nhansu.groupby("Phòng ban")["Họ tên"].count().reset_index()
@@ -1230,14 +1281,14 @@ def main():
 
                                 with col_ev_table:
                                     st.markdown(f"#### ❌ Danh Sách Vắng Mặt Sự Kiện Này")
-                                    if not df_nhansu.empty:
-                                        attended_names = df_event_att["Họ tên"].tolist()
+                                    if not df_nhansu.empty and "Họ tên" in df_nhansu.columns:
+                                        attended_names = df_event_att["Họ tên"].tolist() if not df_event_att.empty and "Họ tên" in df_event_att.columns else []
                                         df_missing_staff = df_nhansu[~df_nhansu["Họ tên"].isin(attended_names)].copy()
                                         if not df_missing_staff.empty:
                                             df_missing_staff = df_missing_staff.reset_index(drop=True)
                                             df_missing_staff["STT"] = range(1, len(df_missing_staff) + 1)
-                                            df_missing_staff = df_missing_staff[["STT", "Họ tên", "Phòng ban", "Chức vụ"]]
-                                            st.dataframe(df_missing_staff, use_container_width=True, height=280, hide_index=True)
+                                            cols_to_show = [c for c in ["STT", "Họ tên", "Phòng ban", "Chức vụ"] if c in df_missing_staff.columns]
+                                            st.dataframe(df_missing_staff[cols_to_show], use_container_width=True, height=280, hide_index=True)
                                         else:
                                             st.success("🎉 Tuyệt vời! Sự kiện này không có ai vắng mặt.")
                                     else:
@@ -1249,7 +1300,7 @@ def main():
 
                     st.markdown("### 📋 Bảng Tổng Hợp Tình Hình Tham Gia Sinh Hoạt")
 
-                    if total_events > 0 and not df_nhansu.empty:
+                    if total_events > 0 and not df_nhansu.empty and not df_att.empty and "Họ tên" in df_att.columns and "Họ tên" in df_nhansu.columns:
                         attendance_counts = df_att.groupby("Họ tên").size().reset_index(name="Số buổi tham gia")
                         df_summary = pd.merge(df_nhansu, attendance_counts, on="Họ tên", how="left").fillna({"Số buổi tham gia": 0})
                         df_summary["Tổng Sự kiện"] = total_events
@@ -1259,9 +1310,8 @@ def main():
                         df_summary = df_summary.sort_values(by="Tỉ lệ tham gia (%)", ascending=True).reset_index(drop=True)
                         df_summary["STT"] = range(1, len(df_summary) + 1)
 
-                        df_summary_show = df_summary[["STT", "Họ tên", "Phòng ban", "Chức vụ", "Tổng Sự kiện", "Số buổi vắng", "Tỉ lệ tham gia (%)"]]
-
-                        st.dataframe(df_summary_show, use_container_width=True, height=400, hide_index=True)
+                        cols_sum = [c for c in ["STT", "Họ tên", "Phòng ban", "Chức vụ", "Tổng Sự kiện", "Số buổi vắng", "Tỉ lệ tham gia (%)"] if c in df_summary.columns]
+                        st.dataframe(df_summary[cols_sum], use_container_width=True, height=400, hide_index=True)
                     else:
                         st.info("ℹ️ Cần có ít nhất 1 sự kiện và danh sách nhân sự trong khoảng thời gian này để tổng hợp.")
 
