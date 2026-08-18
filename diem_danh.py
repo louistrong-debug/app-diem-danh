@@ -1048,7 +1048,7 @@ def main():
                     if "Ngày học" in df_titles_raw.columns and "Ngày tổ chức" not in df_titles_raw.columns:
                         df_titles_raw = df_titles_raw.rename(columns={"Ngày học": "Ngày tổ chức"})
 
-                    # BƯỚC 1: LỌC DANH SÁCH SỰ KIỆN THEO KHOẢNG THỜI GIAN CHUNG (TỪ THÁNG/NĂM ĐẾN THÁNG/NĂM)
+                    # BƯỚC 1: LỌC DANH SÁCH SỰ KIỆN THEO KHOẢNG THỜI GIAN CHUNG (ĐÃ ĐƯA LÊN CÙNG 1 HÀNG)
                     df_titles_filter = df_titles_raw.copy()
                     df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
 
