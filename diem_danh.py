@@ -1135,67 +1135,102 @@ def main():
 
                     st.markdown("---")
 
-                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (ĐÃ LỌC TRÙNG)
+                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (BỔ SUNG BỘ LỌC THỜI GIAN)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
-                    if not df_titles.empty and "Sự kiện" in df_titles.columns:
-                        list_all_events = df_titles["Sự kiện"].tolist()
-                        selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
+                    if not df_titles.empty and "Sự kiện" in df_titles.columns and "Ngày tổ chức" in df_titles.columns:
+                        # Xử lý trích xuất Tháng/Năm từ cột Ngày tổ chức để làm bộ lọc
+                        df_titles_filter = df_titles.copy()
+                        df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
+                        df_titles_filter["_month_year"] = df_titles_filter["_dt"].dt.strftime("%m/%Y")
+                        
+                        # Lấy danh sách các tháng/năm có sẵn (sắp xếp giảm dần hoặc tăng dần)
+                        available_months = sorted(df_titles_filter["_month_year"].dropna().unique().tolist())
+                        
+                        if available_months:
+                            col_f1, col_f2 = st.columns(2, gap="medium")
+                            with col_f1:
+                                selected_from_my = st.selectbox("📅 Từ tháng/năm:", available_months, index=0, key="sel_from_my")
+                            with col_f2:
+                                selected_to_my = st.selectbox("📅 Đến tháng/năm:", available_months, index=len(available_months)-1, key="sel_to_my")
+                            
+                            # Lọc danh sách sự kiện theo khoảng thời gian người dùng chọn
+                            def parse_my(my_str):
+                                try:
+                                    m, y = my_str.split("/")
+                                    return datetime(int(y), int(m), 1)
+                                except:
+                                    return datetime.min
 
-                        if selected_detail_event:
-                            df_event_att = df_att[df_att["Nội dung"] == selected_detail_event]
-                            event_attendees_count = len(df_event_att)
-                            event_rate = (event_attendees_count / total_staff * 100) if total_staff > 0 else 0
+                            from_date = parse_my(selected_from_my)
+                            to_date = parse_my(selected_to_my)
 
-                            col_ev1, col_ev2, col_ev3 = st.columns(3, gap="medium")
-                            with col_ev1:
-                                st.metric(label="👥 Tổng Số Người Tham Gia (Duy nhất)", value=f"{event_attendees_count} / {total_staff} nhân sự")
-                            with col_ev2:
-                                st.metric(label="📊 Tỉ Lệ Tham Gia Sự Kiện", value=f"{event_rate:.1f}%")
-                            with col_ev3:
-                                missing_count = total_staff - event_attendees_count
-                                st.metric(label="❌ Số Lượng Vắng Mặt", value=f"{missing_count} nhân sự")
+                            mask = df_titles_filter["_dt"].apply(lambda d: from_date <= datetime(d.year, d.month, 1) <= to_date if pd.notnull(d) else False)
+                            df_filtered_titles = df_titles_filter[mask]
+                            
+                            list_all_events = df_filtered_titles["Sự kiện"].tolist()
+                        else:
+                            list_all_events = df_titles["Sự kiện"].tolist()
 
-                            col_ev_chart, col_ev_table = st.columns([1, 1.2], gap="large")
+                        if list_all_events:
+                            selected_detail_event = st.selectbox("👉 Chọn sự kiện cần xem chi tiết:", list_all_events, key="select_detail_event")
 
-                            with col_ev_chart:
-                                st.markdown(f"#### 📊 Tỉ Lệ Phòng Ban Trong Sự Kiện")
-                                if not df_event_att.empty and not df_nhansu.empty:
-                                    df_ev_dept_att = df_event_att.groupby("Phòng ban")["Họ tên"].count().reset_index()
-                                    df_ev_dept_att = df_ev_dept_att.rename(columns={"Họ tên": "Tham gia"})
-                                    df_ev_dept_total = df_nhansu.groupby("Phòng ban")["Họ tên"].count().reset_index()
-                                    df_ev_dept_total = df_ev_dept_total.rename(columns={"Họ tên": "Tổng"})
+                            if selected_detail_event:
+                                df_event_att = df_att[df_att["Nội dung"] == selected_detail_event]
+                                event_attendees_count = len(df_event_att)
+                                event_rate = (event_attendees_count / total_staff * 100) if total_staff > 0 else 0
 
-                                    df_ev_merged = pd.merge(df_ev_dept_total, df_ev_dept_att, on="Phòng ban", how="left").fillna(0)
-                                    df_ev_merged["Tỉ lệ (%)"] = (df_ev_merged["Tham gia"] / df_ev_merged["Tổng"] * 100).round(1)
+                                col_ev1, col_ev2, col_ev3 = st.columns(3, gap="medium")
+                                with col_ev1:
+                                    st.metric(label="👥 Tổng Số Người Tham Gia (Duy nhất)", value=f"{event_attendees_count} / {total_staff} nhân sự")
+                                with col_ev2:
+                                    st.metric(label="📊 Tỉ Lệ Tham Gia Sự Kiện", value=f"{event_rate:.1f}%")
+                                with col_ev3:
+                                    missing_count = total_staff - event_attendees_count
+                                    st.metric(label="❌ Số Lượng Vắng Mặt", value=f"{missing_count} nhân sự")
 
-                                    fig_ev_bar = px.bar(
-                                        df_ev_merged, 
-                                        x="Phòng ban", 
-                                        y="Tỉ lệ (%)", 
-                                        text="Tỉ lệ (%)",
-                                        color="Phòng ban",
-                                        title=f"Mức độ tham gia: {selected_detail_event}"
-                                    )
-                                    fig_ev_bar.update_traces(texttemplate='%{text}%', textposition='outside')
-                                    fig_ev_bar.update_layout(xaxis_title="Phòng Ban", yaxis_title="Tỉ Lệ (%)", showlegend=False)
-                                    st.plotly_chart(fig_ev_bar, use_container_width=True)
-                                else:
-                                    st.info("ℹ️ Chưa có dữ liệu tham gia cho sự kiện này.")
+                                col_ev_chart, col_ev_table = st.columns([1, 1.2], gap="large")
 
-                            with col_ev_table:
-                                st.markdown(f"#### ❌ Danh Sách Vắng Mặt Sự Kiện Này")
-                                if not df_nhansu.empty:
-                                    attended_names = df_event_att["Họ tên"].tolist()
-                                    df_missing_staff = df_nhansu[~df_nhansu["Họ tên"].isin(attended_names)].copy()
-                                    if not df_missing_staff.empty:
-                                        df_missing_staff = df_missing_staff.reset_index(drop=True)
-                                        df_missing_staff["STT"] = range(1, len(df_missing_staff) + 1)
-                                        df_missing_staff = df_missing_staff[["STT", "Họ tên", "Phòng ban", "Chức vụ"]]
-                                        st.dataframe(df_missing_staff, use_container_width=True, height=280, hide_index=True)
+                                with col_ev_chart:
+                                    st.markdown(f"#### 📊 Tỉ Lệ Phòng Ban Trong Sự Kiện")
+                                    if not df_event_att.empty and not df_nhansu.empty:
+                                        df_ev_dept_att = df_event_att.groupby("Phòng ban")["Họ tên"].count().reset_index()
+                                        df_ev_dept_att = df_ev_dept_att.rename(columns={"Họ tên": "Tham gia"})
+                                        df_ev_dept_total = df_nhansu.groupby("Phòng ban")["Họ tên"].count().reset_index()
+                                        df_ev_dept_total = df_ev_dept_total.rename(columns={"Họ tên": "Tổng"})
+
+                                        df_ev_merged = pd.merge(df_ev_dept_total, df_ev_dept_att, on="Phòng ban", how="left").fillna(0)
+                                        df_ev_merged["Tỉ lệ (%)"] = (df_ev_merged["Tham gia"] / df_ev_merged["Tổng"] * 100).round(1)
+
+                                        fig_ev_bar = px.bar(
+                                            df_ev_merged, 
+                                            x="Phòng ban", 
+                                            y="Tỉ lệ (%)", 
+                                            text="Tỉ lệ (%)",
+                                            color="Phòng ban",
+                                            title=f"Mức độ tham gia: {selected_detail_event}"
+                                        )
+                                        fig_ev_bar.update_traces(texttemplate='%{text}%', textposition='outside')
+                                        fig_ev_bar.update_layout(xaxis_title="Phòng Ban", yaxis_title="Tỉ Lệ (%)", showlegend=False)
+                                        st.plotly_chart(fig_ev_bar, use_container_width=True)
                                     else:
-                                        st.success("🎉 Tuyệt vời! Sự kiện này không có ai vắng mặt.")
-                                else:
-                                    st.info("ℹ️ Không có dữ liệu nhân sự.")
+                                        st.info("ℹ️ Chưa có dữ liệu tham gia cho sự kiện này.")
+
+                                with col_ev_table:
+                                    st.markdown(f"#### ❌ Danh Sách Vắng Mặt Sự Kiện Này")
+                                    if not df_nhansu.empty:
+                                        attended_names = df_event_att["Họ tên"].tolist()
+                                        df_missing_staff = df_nhansu[~df_nhansu["Họ tên"].isin(attended_names)].copy()
+                                        if not df_missing_staff.empty:
+                                            df_missing_staff = df_missing_staff.reset_index(drop=True)
+                                            df_missing_staff["STT"] = range(1, len(df_missing_staff) + 1)
+                                            df_missing_staff = df_missing_staff[["STT", "Họ tên", "Phòng ban", "Chức vụ"]]
+                                            st.dataframe(df_missing_staff, use_container_width=True, height=280, hide_index=True)
+                                        else:
+                                            st.success("🎉 Tuyệt vời! Sự kiện này không có ai vắng mặt.")
+                                    else:
+                                        st.info("ℹ️ Không có dữ liệu nhân sự.")
+                        else:
+                            st.warning("⚠️ Không tìm thấy sự kiện nào trong khoảng thời gian đã chọn.")
 
                     st.markdown("---")
 
