@@ -317,12 +317,9 @@ def apply_custom_css():
                 margin-top: -10px !important;
                 margin-bottom: 5px !important;
             }
-            
-            /* TỐI ƯU KHOẢNG CÁCH GỌN GÀNG (SÁT SÁT LẠI) */
             div[data-testid="stVerticalBlock"] {
                 gap: 0.5rem !important;
             }
-            
             div[data-testid="stColumn"] div[data-testid="stButton"] > button,
             div[data-testid="stDownloadButton"] > button {
                 width: 100% !important;
@@ -370,6 +367,7 @@ def delete_confirmation_dialog(target_title):
     if st.button("🗑️ Đồng ý xóa", use_container_width=True, key="btn_confirm_delete"):
         df_titles = load_titles()
         df_titles = df_titles[df_titles["Sự kiện"] != target_title]
+        # ĐÃ SỬA: Gọi trực tiếp save_titles để vừa xóa local vừa đồng bộ lên Google Sheets ngay lập tức
         save_titles(df_titles)
         st.success(f"Đã xóa thành công sự kiện '{target_title}' (đã đồng bộ Cloud).")
         st.rerun()
@@ -1143,7 +1141,7 @@ def main():
                         df_titles_filter["_dt"] = pd.to_datetime(df_titles_filter["Ngày tổ chức"], dayfirst=True, errors="coerce")
                         df_titles_filter["_month_year"] = df_titles_filter["_dt"].dt.strftime("%m/%Y")
                         
-                        # Lấy danh sách các tháng/năm có sẵn (sắp xếp giảm dần hoặc tăng dần)
+                        # Lấy danh sách các tháng/năm có sẵn
                         available_months = sorted(df_titles_filter["_month_year"].dropna().unique().tolist())
                         
                         if available_months:
