@@ -856,7 +856,6 @@ def main():
 
                 st.markdown("💡 *Bấm chọn vào dòng cần xóa hoặc xem ảnh xác thực trong bảng dưới đây:*")
                 
-                # KHÔI PHỤC NGUYÊN BẢN ĐỂ BẮT CHÍNH XÁC INDEX GỐC KHI XÓA
                 event_att = st.dataframe(
                     df_filtered, 
                     width="stretch", 
@@ -1128,7 +1127,7 @@ def main():
 
                     st.markdown("---")
 
-                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (BỔ SUNG BỘ LỌC THỜI GIAN GÕ HOẶC CHỌN)
+                    # C. PHẦN THỐNG KÊ CHI TIẾT TỪNG SỰ KIỆN (BỘ LỌC GÕ THÁNG/NĂM CÓ LABEL)
                     st.markdown("### 🔎 Thống Kê Chi Tiết Theo Từng Sự Kiện")
                     if not df_titles.empty and "Sự kiện" in df_titles.columns and "Ngày tổ chức" in df_titles.columns:
                         df_titles_filter = df_titles.copy()
@@ -1136,9 +1135,9 @@ def main():
                         
                         col_f1, col_f2 = st.columns(2, gap="medium")
                         with col_f1:
-                            from_input = st.text_input("📅 Từ tháng/năm (MM/YYYY):", value="01/2026", placeholder="VD: 08/2026", key="input_from_my")
+                            from_input = st.text_input("📅 Từ tháng/năm (MM/YYYY):", value="01/2026", placeholder="VD: 08/2026", key="input_from_my", label_visibility="visible")
                         with col_f2:
-                            to_input = st.text_input("📅 Đến tháng/năm (MM/YYYY):", value="12/2026", placeholder="VD: 12/2026", key="input_to_my")
+                            to_input = st.text_input("📅 Đến tháng/năm (MM/YYYY):", value="12/2026", placeholder="VD: 12/2026", key="input_to_my", label_visibility="visible")
                         
                         def parse_custom_my(my_str):
                             try:
