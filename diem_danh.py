@@ -357,37 +357,41 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 
-# ========================== POPUP CẨM NANG VẬN HÀNH ==========================
+# ========================== POPUP CẨM NANG VẬN HÀNH (ĐÃ THIẾT KẾ LẠI SINH ĐỘNG) ==========================
 @st.dialog("📖 Cẩm Nang Vận Hành Hệ Thống Điểm Danh")
 def operations_manual_dialog():
     st.markdown("""
-    <div style="background-color: #F0FDF4; padding: 20px; border-radius: 12px; border: 2px solid #22C55E; color: #166534; margin-bottom: 15px;">
-        <h4 style="color: #15803D !important; margin-top: 0; margin-bottom: 10px;">🌟 CHÀO MỪNG ĐẾN VỚI HỆ THỐNG ĐIỂM DANH SỰ KIỆN</h4>
-        <p style="margin: 0; font-size: 15px; line-height: 1.5;">Tài liệu này hướng dẫn chi tiết cách thức vận hành, quản lý sự kiện và sử dụng mã QR điểm danh thông minh tích hợp nhận diện khuôn mặt.</p>
+    <div style="background: linear-gradient(135deg, #ECFDF5 100%, #D1FAE5 0%); padding: 18px; border-radius: 12px; border-left: 6px solid #10B981; box-shadow: 0 3px 6px rgba(0,0,0,0.03); margin-bottom: 14px;">
+        <h4 style="color: #065F46 !important; margin-top: 0; margin-bottom: 6px; font-size: 18px !important;">🌟 HƯỚNG DẪN SỬ DỤNG NHANH HỆ THỐNG</h4>
+        <p style="margin: 0; font-size: 14px; color: #047857; line-height: 1.5;">Chào mừng bạn đến với hệ thống điểm danh thông minh tích hợp AI. Dưới đây là quy trình vận hành trực quan giúp bạn làm chủ phần mềm dễ dàng.</p>
     </div>
 
-    <div style="background-color: #EFF6FF; padding: 15px; border-radius: 10px; border-left: 5px solid #3B82F6; margin-bottom: 15px;">
-        <h5 style="color: #1E40AF !important; margin-top: 0; margin-bottom: 8px;">🎯 1. Tab Tạo Mã QR (Sự Kiện)</h5>
-        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #1E293B; line-height: 1.6;">
-            <li><b>Bước 1:</b> Nhập tên sự kiện và chọn ngày tổ chức tương ứng.</li>
-            <li><b>Bước 2:</b> Nhấn nút <b>"Tạo mã QRCode"</b> (Hệ thống cấp hiệu lực tự động trong 15 phút chống gian lận).</li>
-            <li><b>Bước 3:</b> Trình chiếu mã QR lên màn hình lớn hoặc tải xuống file ảnh để gửi vào nhóm triển khai.</li>
+    <div style="background: linear-gradient(135deg, #EFF6FF 100%, #DBEAFE 0%); padding: 15px; border-radius: 10px; border-left: 5px solid #3B82F6; margin-bottom: 12px;">
+        <h5 style="color: #1E40AF !important; margin-top: 0; margin-bottom: 6px; font-size: 16px !important;">🎯 1. Quản lý sự kiện & Tạo mã QR</h5>
+        <p style="margin: 0 0 6px 0; font-size: 13.5px; color: #1E3A8A; font-weight: 500;">Dùng tại Tab 1 để tạo mã cho buổi họp hoặc sự kiện:</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: #1F2937; line-height: 1.5;">
+            <li><b>Bước 1:</b> Nhập tên sự kiện & chọn ngày tổ chức chính xác.</li>
+            <li><b>Bước 2:</b> Nhấn <b>"Tạo mã QRCode"</b> (Mã tự động có hiệu lực an toàn trong 15 phút).</li>
+            <li><b>Bước 3:</b> Trình chiếu mã QR lên màn hình lớn hoặc tải ảnh gửi nhóm triển khai.</li>
         </ul>
     </div>
 
-    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 10px; border-left: 5px solid #F59E0B; margin-bottom: 15px;">
-        <h5 style="color: #B45309 !important; margin-top: 0; margin-bottom: 8px;">📊 2. Tab Điểm Danh & Báo Cáo</h5>
-        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #1E293B; line-height: 1.6;">
-            <li>Theo dõi danh sách điểm danh thời gian thực, xem ảnh chụp xác thực khuôn mặt trực quan của từng đồng chí.</li>
-            <li>Hỗ trợ xuất báo cáo định dạng Excel nhanh chóng theo từng sự kiện hoặc toàn bộ hệ thống.</li>
+    <div style="background: linear-gradient(135deg, #FFFBEB 100%, #FEF3C7 0%); padding: 15px; border-radius: 10px; border-left: 5px solid #F59E0B; margin-bottom: 12px;">
+        <h5 style="color: #B45309 !important; margin-top: 0; margin-bottom: 6px; font-size: 16px !important;">📊 2. Theo dõi điểm danh & Ảnh xác thực</h5>
+        <p style="margin: 0 0 6px 0; font-size: 13.5px; color: #92400E; font-weight: 500;">Dùng tại Tab 2 để kiểm tra dữ liệu điểm danh thực tế:</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: #1F2937; line-height: 1.5;">
+            <li>Xem danh sách nhân sự đã check-in thời gian thực theo từng sự kiện.</li>
+            <li>Nhấp chọn từng dòng để kiểm tra <b>ảnh chụp xác thực khuôn mặt</b> trực quan.</li>
+            <li>Hỗ trợ xuất báo cáo file Excel chi tiết một chạm nhanh chóng.</li>
         </ul>
     </div>
 
-    <div style="background-color: #FAF5FF; padding: 15px; border-radius: 10px; border-left: 5px solid #A855F7; margin-bottom: 15px;">
-        <h5 style="color: #7E22CE !important; margin-top: 0; margin-bottom: 8px;">📈 3. Tab Báo Cáo Chuyên Sâu (Admin Dashboard trực quan)</h5>
-        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #1E293B; line-height: 1.6;">
-            <li>Xem chỉ số chuyên cần trung bình, biểu đồ cột theo phòng ban và xu hướng tham gia qua các sự kiện.</li>
-            <li>Tra cứu nhanh danh sách nhân sự vắng mặt từng buổi để có biện pháp nhắc nhở, đôn đốc kịp thời.</li>
+    <div style="background: linear-gradient(135deg, #FAF5FF 100%, #F3E8FF 0%); padding: 15px; border-radius: 10px; border-left: 5px solid #A855F7; margin-bottom: 14px;">
+        <h5 style="color: #7E22CE !important; margin-top: 0; margin-bottom: 6px; font-size: 16px !important;">📈 3. Báo cáo chuyên sâu & Dashboard</h5>
+        <p style="margin: 0 0 6px 0; font-size: 13.5px; color: #6B21A8; font-weight: 500;">Dùng tại Tab 5 để phân tích tổng hợp dành cho Quản trị viên:</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: #1F2937; line-height: 1.5;">
+            <li>Theo dõi tỉ lệ chuyên cần trung bình qua biểu đồ trực quan sinh động.</li>
+            <li>Tra cứu nhanh danh sách nhân sự vắng mặt để có giải pháp đôn đốc kịp thời.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -1138,7 +1142,7 @@ def main():
 
                 st.markdown("---")
 
-                # ========================== KHUNG BỔ SUNG: HỖ TRỢ KỸ THUẬT & CẨM NANG ==========================
+                # ========================== KHUNG HỖ TRỢ KỸ THUẬT & CẨM NANG ==========================
                 st.markdown("""
                 <div style="background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); padding: 25px; border-radius: 14px; border: 1px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-top: 15px;">
                     <h4 style="color: #0F172A !important; margin-top: 0; margin-bottom: 12px; font-size: 20px !important;">🛠️ Hỗ trợ Kỹ thuật & Phát triển</h4>
