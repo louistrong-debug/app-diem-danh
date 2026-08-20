@@ -143,6 +143,7 @@ def load_data():
         try:
             df = pd.read_excel(EXCEL_FILE)
         except Exception:
+            # Nếu file bị lỗi cấu trúc/hỏng, xóa file cũ và tạo lại DataFrame mặc định
             if os.path.exists(EXCEL_FILE):
                 os.remove(EXCEL_FILE)
             df = pd.DataFrame({
@@ -355,46 +356,6 @@ def apply_custom_css():
             }
         </style>
     """, unsafe_allow_html=True)
-
-
-# ========================== POPUP CẨM NANG VẬN HÀNH ==========================
-@st.dialog("📖 Cẩm Nang Vận Hành Hệ Thống Điểm Danh")
-def operations_manual_dialog():
-    st.markdown("""
-    <div style="background-color: #F0FDF4; padding: 20px; border-radius: 12px; border: 2px solid #22C55E; color: #166534; margin-bottom: 15px;">
-        <h4 style="color: #15803D !important; margin-top: 0; margin-bottom: 10px;">🌟 CHÀO MỪNG ĐẾN VỚI HỆ THỐNG ĐIỂM DANH SỰ KIỆN</h4>
-        <p style="margin: 0; font-size: 15px; line-height: 1.5;">Tài liệu này hướng dẫn chi tiết cách thức vận hành, quản lý sự kiện và sử dụng mã QR điểm danh thông minh tích hợp nhận diện khuôn mặt.</p>
-    </div>
-
-    <div style="background-color: #EFF6FF; padding: 15px; border-radius: 10px; border-left: 5px solid #3B82F6; margin-bottom: 15px;">
-        <h5 style="color: #1E40AF !important; margin-top: 0; margin-bottom: 8px;">🎯 1. Tab Tạo Mã QR (Sự Kiện)</h5>
-        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #1E293B; line-height: 1.6;">
-            <li><b>Bước 1:</b> Nhập tên sự kiện và chọn ngày tổ chức tương ứng.</li>
-            <li><b>Bước 2:</b> Nhấn nút <b>"Tạo mã QRCode"</b> (Hệ thống cấp hiệu lực tự động trong 15 phút chống gian lận).</li>
-            <li><b>Bước 3:</b> Trình chiếu mã QR lên màn hình lớn hoặc tải xuống file ảnh để gửi vào nhóm triển khai.</li>
-        </ul>
-    </div>
-
-    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 10px; border-left: 5px solid #F59E0B; margin-bottom: 15px;">
-        <h5 style="color: #B45309 !important; margin-top: 0; margin-bottom: 8px;">📊 2. Tab Điểm Danh & Báo Cáo</h5>
-        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #1E293B; line-height: 1.6;">
-            <li>Theo dõi danh sách điểm danh thời gian thực, xem ảnh chụp xác thực khuôn mặt trực quan của từng đồng chí.</li>
-            <li>Hỗ trợ xuất báo cáo định dạng Excel nhanh chóng theo từng sự kiện hoặc toàn bộ hệ thống.</li>
-        </ul>
-    </div>
-
-    <div style="background-color: #FAF5FF; padding: 15px; border-radius: 10px; border-left: 5px solid #A855F7; margin-bottom: 15px;">
-        <h5 style="color: #7E22CE !important; margin-top: 0; margin-bottom: 8px;">📈 3. Tab Báo Cáo Chuyên Sâu (Admin Dashboard trực quan)</h5>
-        <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #1E293B; line-height: 1.6;">
-            <li>Xem chỉ số chuyên cần trung bình, biểu đồ cột theo phòng ban và xu hướng tham gia qua các sự kiện.</li>
-            <li>Tra cứu nhanh danh sách nhân sự vắng mặt từng buổi để có biện pháp nhắc nhở, đôn đốc kịp thời.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.write("")
-    if st.button("✖️ Đóng Cẩm Nang", use_container_width=True, key="btn_close_manual"):
-        st.rerun()
 
 
 @st.dialog("🟢 Ghi nhận Điểm Danh")
@@ -931,6 +892,7 @@ def main():
 
                     df_filtered = df_att[df_att["Nội dung"] == selected_filter].copy() if selected_filter != "Tất cả" else df_att.copy()
 
+                    # THÊM CỘT STT VÀO ĐẦU BẢNG ĐIỂM DANH TẠI TAB 2
                     df_filtered = df_filtered.reset_index(drop=True)
                     df_filtered.insert(0, "STT", range(1, len(df_filtered) + 1))
 
@@ -1016,7 +978,7 @@ def main():
 
                                             if "Nội dung Nghị quyết" in df_att_all.columns:
                                                 df_att_all = df_att_all.rename(columns={"Nội dung Nghị quyết": "Nội dung"})
-                                            
+                                        
                                             df_remaining = df_att_all[df_att_all["Nội dung"] != target_event]
                                             df_remaining.to_excel(ATTENDANCE_FILE, index=False)
                                             sync_to_google() 
@@ -1060,7 +1022,7 @@ def main():
                     "💡 **Lưu ý:** Bạn có thể thay thế file `danh_sach_nhan_su.xlsx` bằng danh sách thực tế của đơn vị với đúng tên các cột tương ứng."
                 )
 
-            # ------------------ TAB 4: QUẢN TRỊ USER & HỖ TRỢ KỸ THUẬT (ADMIN) ------------------
+            # ------------------ TAB 4: QUẢN TRỊ USER (ADMIN) ------------------
             with rendered_tabs[3]:
                 st.markdown("### 🔐 Quản Trị Hệ Thống Người Dùng")
 
@@ -1135,23 +1097,6 @@ def main():
                                 save_users(df_users)
                                 st.success(f"🗑️ Đã xóa tài khoản '{del_user}' thành công (đã đồng bộ Cloud).")
                                 st.rerun()
-
-                st.markdown("---")
-
-                # ========================== KHUNG BỔ SUNG: HỖ TRỢ KỸ THUẬT & CẨM NANG ==========================
-                st.markdown("""
-                <div style="background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%); padding: 25px; border-radius: 14px; border: 1px solid #CBD5E1; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-top: 15px;">
-                    <h4 style="color: #0F172A !important; margin-top: 0; margin-bottom: 12px; font-size: 20px !important;">🛠️ Hỗ trợ Kỹ thuật & Phát triển</h4>
-                    <p style="margin: 6px 0; font-size: 15px; color: #334155;">📧 <b>Liên hệ:</b> trong.ndn@centremall.vn &nbsp;|&nbsp; 📱 <b>Cell:</b> 0939.135.554</p>
-                    <p style="margin: 6px 0; font-size: 14px; color: #64748B; font-style: italic;">💡 <b>Lưu ý:</b> Ứng dụng được hỗ trợ xây dựng bởi Google Gemini.</p>
-                </div>
-                """, unsafe_allow_html=True)
-
-                st.write("")
-                col_btn_cm1, col_btn_cm2, col_btn_cm3 = st.columns([1, 1.5, 1])
-                with col_btn_cm2:
-                    if st.button("📖 Cẩm nang vận hành ứng dụng", use_container_width=True):
-                        operations_manual_dialog()
 
             # ------------------ TAB 5: BÁO CÁO CHUYÊN SÂU (ADMIN) ------------------
             with rendered_tabs[4]:
